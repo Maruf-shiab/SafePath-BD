@@ -1,0 +1,166 @@
+@using System.Text.Json
+@model SafePathBD.Web.Models.ViewModels.Map.MapPageViewModel
+@{
+    ViewData["Title"] = "Map";
+    ViewData["FullBleed"] = true;
+
+    var mapConfig = JsonSerializer.Serialize(new
+    {
+        lat = Model.DefaultLatitude,
+        lng = Model.DefaultLongitude,
+        zoom = Model.DefaultZoom
+    });
+}
+
+@section Head {
+    <link rel="stylesheet" href="~/lib/leaflet/leaflet.css" />
+    <link rel="stylesheet" href="~/css/map.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/reports.css" asp-append-version="true" />
+}
+
+<div class="map-workspace" data-map-root data-map-config="@mapConfig">
+    <div class="map-canvas" data-map-canvas role="application" aria-label="SafePath BD interactive map"></div>
+
+    <div class="map-loading" data-map-loading>
+        <div class="map-loading-inner">
+            <svg viewBox="0 0 132 44" aria-hidden="true">
+                <path d="M4 34C24 34 30 10 52 10s28 24 48 24h28" />
+            </svg>
+            <p class="t-meta">Loading the SafePath map…</p>
+        </div>
+    </div>
+
+    @* Journey planning panel *@
+    <section class="map-layer map-panel map-panel--search" aria-label="Plan a journey">
+        <div class="map-panel-head">
+            <span class="t-eyebrow">Plan a journey</span>
+            <button class="map-control" type="button" data-swap title="Swap start and destination" aria-label="Swap start and destination" style="width:32px;height:32px;box-shadow:none;background:transparent;backdrop-filter:none">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 4v13M7 4 4 7M7 4l3 3M17 20V7M17 20l3-3M17 20l-3-3" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="route-fields">
+            <div class="route-field" data-place-field="start">
+                <span class="route-field-dot" aria-hidden="true"></span>
+                <div style="position:relative">
+                    <label class="visually-hidden" for="startPlace">Start location</label>
+                    <input class="input" id="startPlace" type="text" placeholder="Choose a start point"
+                           autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" />
+                    <div class="suggest" data-suggest role="listbox" aria-label="Start location suggestions"></div>
+                </div>
+            </div>
+
+            <div class="route-field route-field--end" data-place-field="end">
+                <span class="route-field-dot" aria-hidden="true"></span>
+                <div style="position:relative">
+                    <label class="visually-hidden" for="endPlace">Destination</label>
+                    <input class="input" id="endPlace" type="text" placeholder="Choose a destination"
+                           autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" />
+                    <div class="suggest" data-suggest role="listbox" aria-label="Destination suggestions"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="route-actions">
+            <button class="btn btn-secondary" type="button" data-use-current-start>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3.2" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+                </svg>
+                <span>My location</span>
+            </button>
+            <button class="btn btn-secondary is-disabled" type="button" disabled
+                    title="Route comparison arrives with the routing module">
+                Find safe route
+            </button>
+        </div>
+
+        <p class="map-note">
+            Safest, fastest and shortest route comparison will be available in the routing module.
+            You can already set a start and destination, and search emergency services.
+        </p>
+    </section>
+
+    @* Floating controls *@
+    <div class="map-layer map-controls">
+        <button class="map-control" type="button" data-locate title="Use my location" aria-label="Use my location">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3.2" /><circle cx="12" cy="12" r="8" /><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" />
+            </svg>
+        </button>
+        <button class="map-control is-active" type="button" data-toggle-emergency aria-pressed="true"
+                title="Toggle emergency services layer" aria-label="Toggle emergency services layer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 7v10M7 12h10" /><rect x="3.5" y="3.5" width="17" height="17" rx="4" />
+            </svg>
+        </button>
+        <button class="map-control" type="button" data-toggle-reports aria-pressed="false"
+                title="Toggle verified accident and hazard reports" aria-label="Toggle verified accident and hazard reports">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 9.2v4M12 16.4h.01" />
+                <path d="M10.3 4.4 2.6 17.6a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.4a2 2 0 0 0-3.4 0Z" />
+            </svg>
+        </button>
+        <button class="map-control" type="button" data-reset-view title="Reset the view" aria-label="Reset the view">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 12a9 9 0 1 0 2.6-6.4M3 4v5h5" />
+            </svg>
+        </button>
+    </div>
+
+    @* Emergency type filters *@
+    <div class="map-layer map-filters" role="group" aria-label="Emergency service type">
+        <button class="filter-chip is-active" type="button" data-filter="all" aria-pressed="true"
+                style="--chip-dot: var(--accent-primary)">All</button>
+        @foreach (var type in Model.ServiceTypes)
+        {
+            // Short labels keep the chip row on one line; the filter value stays the exact database name.
+            var (dot, label) = type switch
+            {
+                "Hospital" => ("var(--svc-hospital)", "Hospitals"),
+                "Police Station" => ("var(--svc-police)", "Police"),
+                "Fire Service" => ("var(--svc-fire)", "Fire"),
+                "Ambulance" => ("var(--svc-ambulance)", "Ambulance"),
+                _ => ("var(--svc-center)", "Emergency")
+            };
+            <button class="filter-chip" type="button" data-filter="@type" aria-pressed="false"
+                    title="@type" aria-label="Show @type" style="--chip-dot: @dot">@label</button>
+        }
+    </div>
+
+    @* Selected point context card *@
+    <div class="map-layer point-card" data-point-card hidden>
+        <span class="t-eyebrow">Selected point</span>
+        <p class="t-body" data-point-title style="margin-top: var(--space-2);"></p>
+        <p class="point-coords" data-point-coords></p>
+        <div class="point-actions">
+            <button class="btn btn-secondary" type="button" data-set-start>Set as start</button>
+            <button class="btn btn-secondary" type="button" data-set-end>Set as destination</button>
+            <button class="btn btn-ghost" type="button" data-point-dismiss aria-label="Dismiss selected point">Clear</button>
+        </div>
+    </div>
+
+    @* Results / detail drawer — bottom sheet on mobile *@
+    <aside class="map-layer map-drawer" data-drawer aria-hidden="true" aria-label="Emergency service results">
+        <span class="drawer-handle" aria-hidden="true"></span>
+        <div class="drawer-head">
+            <div>
+                <h2 class="t-h3" data-drawer-title>Emergency services</h2>
+                <p class="t-meta" data-drawer-subtitle></p>
+            </div>
+            <button class="drawer-close" type="button" data-drawer-close aria-label="Close panel">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+            </button>
+        </div>
+        <div class="drawer-body" data-drawer-body></div>
+    </aside>
+</div>
+
+@section Scripts {
+    <script src="~/lib/leaflet/leaflet.js"></script>
+    <script src="~/js/safepath-map.js" asp-append-version="true"></script>
+    <script src="~/js/map.js" asp-append-version="true"></script>
+}
