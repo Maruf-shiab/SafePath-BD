@@ -1,0 +1,32 @@
+@{
+    ViewData["Title"] = "Access denied";
+}
+
+<div class="status-page shell">
+    <div class="status-page-inner">
+        <span class="status-glyph" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="10.5" width="16" height="10" rx="2.5" />
+                <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+            </svg>
+        </span>
+
+        <h1 class="t-h1">You don't have access to this area</h1>
+        <p class="t-lead" style="text-align: center;">
+            Your account is signed in, but this page needs a higher permission level.
+            Administrator and moderator areas are granted by a SafePath BD administrator.
+        </p>
+
+        <div class="cluster" style="justify-content: center; margin-top: var(--space-3);">
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a class="btn btn-primary" asp-controller="Dashboard" asp-action="Index">Back to dashboard</a>
+            }
+            else
+            {
+                <a class="btn btn-primary" asp-controller="Account" asp-action="Login">Sign in</a>
+            }
+            <a class="btn btn-secondary" asp-controller="Home" asp-action="Index">Go to home</a>
+        </div>
+    </div>
+</div>
