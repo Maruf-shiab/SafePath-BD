@@ -1,0 +1,40 @@
+@model (string StatusCode, string StatusName)
+@{
+    var cssClass = "status-" + Model.StatusCode.ToLowerInvariant();
+}
+
+<span class="status-chip @cssClass" title="Report status: @Model.StatusName">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        @switch (Model.StatusCode)
+        {
+            case ReportStatusCodes.Pending:
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7.5V12l3 1.8" />
+                break;
+            case ReportStatusCodes.UnderReview:
+                <circle cx="11" cy="11" r="6.5" />
+                <path d="m20 20-4.4-4.4" />
+                break;
+            case ReportStatusCodes.Verified:
+                <path d="m8.5 12.2 2.4 2.4 4.8-5" />
+                <circle cx="12" cy="12" r="9" />
+                break;
+            case ReportStatusCodes.Rejected:
+                <path d="m9 9 6 6M15 9l-6 6" />
+                <circle cx="12" cy="12" r="9" />
+                break;
+            case ReportStatusCodes.Resolved:
+                <path d="M20 6 9 17l-5-5" />
+                break;
+            case ReportStatusCodes.Duplicate:
+                <rect x="8" y="8" width="12" height="12" rx="2.5" />
+                <path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4H5.5A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8" />
+                break;
+            default:
+                <path d="M12 8.5v4M12 16h.01" />
+                <circle cx="12" cy="12" r="9" />
+                break;
+        }
+    </svg>
+    <span>@Model.StatusName</span>
+</span>
