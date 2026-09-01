@@ -1,0 +1,2 @@
+Placeholder. Service abstractions (IAuthService, IRouteService, ISafetyScoreService, ...)
+are added per module in later phases.
