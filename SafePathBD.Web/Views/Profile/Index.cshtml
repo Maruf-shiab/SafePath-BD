@@ -1,0 +1,82 @@
+@model ProfileViewModel
+@{
+    ViewData["Title"] = "Profile";
+}
+
+<partial name="_PageHeader" model="@(new PageHeaderViewModel
+{
+    Eyebrow = "Account",
+    Title = "Your profile",
+    Description = "The information SafePath BD holds about your account."
+})" />
+
+<section class="section section--tight">
+    <div class="shell dash-grid">
+        <div class="panel">
+            <div class="identity" style="margin-bottom: var(--space-6);">
+                <span class="avatar" aria-hidden="true">@Model.Initials</span>
+                <div class="stack-2">
+                    <h2 class="t-h3">@Model.FullName</h2>
+                    <div class="cluster">
+                        @foreach (var role in Model.Roles)
+                        {
+                            <span class="chip @(role == RoleNames.Admin ? "chip--accent" : "chip--muted")">@role</span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <dl class="detail-list">
+                <div class="detail-row">
+                    <dt>Email address</dt>
+                    <dd>@Model.Email</dd>
+                </div>
+                <div class="detail-row">
+                    <dt>Email verified</dt>
+                    <dd>
+                        <span class="chip @(Model.EmailVerified ? "chip--safe" : "chip--caution")">
+                            @(Model.EmailVerified ? "Verified" : "Not verified")
+                        </span>
+                    </dd>
+                </div>
+                <div class="detail-row">
+                    <dt>Phone</dt>
+                    <dd>@(string.IsNullOrWhiteSpace(Model.Phone) ? "Not provided" : Model.Phone)</dd>
+                </div>
+                <div class="detail-row">
+                    <dt>Account status</dt>
+                    <dd>
+                        <span class="chip @(Model.IsActive ? "chip--safe" : "chip--danger")">
+                            @(Model.IsActive ? "Active" : "Deactivated")
+                        </span>
+                    </dd>
+                </div>
+                <div class="detail-row">
+                    <dt>Joined</dt>
+                    <dd>@Model.JoinedAt.ToString("d MMMM yyyy")</dd>
+                </div>
+                <div class="detail-row">
+                    <dt>Last sign-in</dt>
+                    <dd>@(Model.LastLoginAt?.ToString("d MMM yyyy, HH:mm") ?? "This is your first session")</dd>
+                </div>
+            </dl>
+        </div>
+
+        <aside class="stack-5">
+            <div class="panel">
+                <h3 class="t-h3 card-title">Privacy</h3>
+                <p class="t-body">
+                    SafePath BD stores your password only as a secure hash and never displays it.
+                    Location is recorded per action — when you request a route or submit a report —
+                    and not tracked continuously.
+                </p>
+            </div>
+
+            <div class="empty-state">
+                <h3 class="t-h3">Profile editing</h3>
+                <p class="t-body">Updating your name, phone and photo arrives with the account management module.</p>
+                <span class="chip chip--muted">Planned</span>
+            </div>
+        </aside>
+    </div>
+</section>
