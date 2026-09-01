@@ -1,0 +1,50 @@
+﻿@{
+    ViewData["Title"] = "Privacy";
+}
+
+<partial name="_PageHeader" model="@(new PageHeaderViewModel
+{
+    Eyebrow = "Privacy",
+    Title = "How SafePath BD handles your data",
+    Description = "A short summary of what the platform stores and why."
+})" />
+
+<section class="section section--tight">
+    <div class="shell" style="max-width: 74ch;">
+        <div class="stack-6">
+            <div class="stack-3">
+                <h2 class="t-h3">Account information</h2>
+                <p class="t-body">
+                    We store your name, email address and, if you provide one, a phone number.
+                    Passwords are stored only as a secure hash and are never displayed or logged.
+                </p>
+            </div>
+
+            <div class="stack-3">
+                <h2 class="t-h3">Location</h2>
+                <p class="t-body">
+                    Location is captured per action — for example when you request a route or submit a
+                    report — and only with your consent. SafePath BD does not track your location
+                    continuously in the background.
+                </p>
+            </div>
+
+            <div class="stack-3">
+                <h2 class="t-h3">Reports you submit</h2>
+                <p class="t-body">
+                    Accident and hazard reports include the location and details you provide. Reports are
+                    reviewed by moderators before they influence any safety score, and verification
+                    decisions are recorded for auditability.
+                </p>
+            </div>
+
+            <div class="stack-3">
+                <h2 class="t-h3">Academic project</h2>
+                <p class="t-body">
+                    SafePath BD is a university project. It is not an emergency dispatch service and
+                    should not be relied on as the only source of road-safety information.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
