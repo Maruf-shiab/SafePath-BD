@@ -1,0 +1,27 @@
+@model SafePathBD.Web.Models.ViewModels.Shared.PageHeaderViewModel
+
+<section class="page-header">
+    <div class="grid-backdrop" aria-hidden="true"></div>
+    <div class="shell page-header-inner">
+        <div class="stack-3">
+            @if (!string.IsNullOrWhiteSpace(Model.Eyebrow))
+            {
+                <span class="t-eyebrow">@Model.Eyebrow</span>
+            }
+            <h1 class="t-h1">@Model.Title</h1>
+            @if (!string.IsNullOrWhiteSpace(Model.Description))
+            {
+                <p class="t-lead">@Model.Description</p>
+            }
+        </div>
+        @if (Model.Chips.Count > 0)
+        {
+            <div class="cluster">
+                @foreach (var chip in Model.Chips)
+                {
+                    <span class="chip @chip.CssClass">@chip.Label</span>
+                }
+            </div>
+        }
+    </div>
+</section>

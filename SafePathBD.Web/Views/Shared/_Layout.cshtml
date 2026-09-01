@@ -1,0 +1,38 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b1220" />
+    <meta name="description" content="SafePath BD — smart road safety and safe route recommendation." />
+    <title>@ViewData["Title"] · SafePath BD</title>
+    <link rel="stylesheet" href="~/css/tokens.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/base.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/components.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/motion.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/responsive.css" asp-append-version="true" />
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body class="@(ViewData["FullBleed"] as bool? == true ? "is-fullbleed" : null)">
+    <div class="app-shell">
+        <a class="skip-link" href="#main">Skip to content</a>
+
+        <partial name="_Navbar" />
+
+        <main class="app-main" id="main">
+            @RenderBody()
+        </main>
+
+        @if (ViewData["FullBleed"] as bool? != true)
+        {
+            <partial name="_Footer" />
+        }
+    </div>
+
+    <script src="~/js/toast.js" asp-append-version="true"></script>
+    <script src="~/js/app.js" asp-append-version="true" defer></script>
+    <script src="~/js/motion.js" asp-append-version="true" defer></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

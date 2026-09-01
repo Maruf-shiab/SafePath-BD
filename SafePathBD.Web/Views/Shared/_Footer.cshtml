@@ -1,0 +1,48 @@
+<footer class="footer">
+    <div class="shell">
+        <div class="footer-inner">
+            <div class="footer-col">
+                <a class="brand" asp-area="" asp-controller="Home" asp-action="Index">
+                    <span class="brand-mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 21s7-5.2 7-11a7 7 0 1 0-14 0c0 5.8 7 11 7 11Z" />
+                            <path d="M9.4 10.2 11.4 12.4 14.9 8.6" />
+                        </svg>
+                    </span>
+                    <span class="brand-text">
+                        SafePath BD
+                        <small>Road safety intelligence</small>
+                    </span>
+                </a>
+                <p class="t-body" style="margin-top: var(--space-4); max-width: 34ch;">
+                    An academic road-safety platform that scores road segments and recommends
+                    safer journeys alongside the fastest and shortest ones.
+                </p>
+            </div>
+
+            <div class="footer-col">
+                <h4>Platform</h4>
+                <ul>
+                    <li><a href="/#how-it-works">How it works</a></li>
+                    <li><a href="/#community">Community reporting</a></li>
+                    <li><a href="/#emergency">Emergency assistance</a></li>
+                    <li><a href="/#safety-engine">Safety scoring</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-col">
+                <h4>Account</h4>
+                <ul>
+                    <li><a asp-area="" asp-controller="Account" asp-action="Login">Sign in</a></li>
+                    <li><a asp-area="" asp-controller="Account" asp-action="Register">Create account</a></li>
+                    <li><a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer-base">
+            <span>&copy; @DateTime.Now.Year SafePath BD — university project.</span>
+            <span>Aligned with SDG 3 &amp; SDG 11.</span>
+        </div>
+    </div>
+</footer>

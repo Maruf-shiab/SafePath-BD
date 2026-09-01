@@ -1,0 +1,72 @@
+@using SafePathBD.Web.Common
+@{
+    var routeData = ViewContext.RouteData.Values;
+    var area = routeData["area"] as string;
+    var controller = routeData["controller"] as string;
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+
+    string NavState(string targetController, string? targetArea = null) =>
+        string.Equals(controller, targetController, StringComparison.OrdinalIgnoreCase)
+        && string.Equals(area ?? string.Empty, targetArea ?? string.Empty, StringComparison.OrdinalIgnoreCase)
+            ? "nav-link is-active"
+            : "nav-link";
+}
+
+<header class="navbar" data-navbar>
+    <div class="shell navbar-inner">
+        <a class="brand" asp-area="" asp-controller="Home" asp-action="Index">
+            <span class="brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 21s7-5.2 7-11a7 7 0 1 0-14 0c0 5.8 7 11 7 11Z" />
+                    <path d="M9.4 10.2 11.4 12.4 14.9 8.6" />
+                </svg>
+            </span>
+            <span class="brand-text">
+                SafePath BD
+                <small>Road safety intelligence</small>
+            </span>
+        </a>
+
+        <button class="nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-label="Toggle navigation">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+        </button>
+
+        <nav class="nav-links" aria-label="Primary">
+            @if (isAuthenticated)
+            {
+                <a class="@NavState("Dashboard")" asp-area="" asp-controller="Dashboard" asp-action="Index">Dashboard</a>
+                <a class="@NavState("Map")" asp-area="" asp-controller="Map" asp-action="Index">Map</a>
+                <a class="@NavState("Reports")" asp-area="" asp-controller="Reports" asp-action="My">My reports</a>
+                @await Component.InvokeAsync("ModerationNav")
+                @if (User.IsInRole(RoleNames.Admin))
+                {
+                    <a class="@NavState("Dashboard", "Admin")" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">Admin</a>
+                }
+            }
+            else
+            {
+                <a class="@NavState("Home")" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                <a class="@NavState("Map")" asp-area="" asp-controller="Map" asp-action="Index">Map</a>
+                <a class="nav-link" href="/#how-it-works">How it works</a>
+                <a class="nav-link" href="/#safety-engine">Safety scoring</a>
+            }
+        </nav>
+
+        <div class="nav-actions">
+            @if (isAuthenticated)
+            {
+                <a class="@NavState("Profile")" asp-area="" asp-controller="Profile" asp-action="Index">@User.Identity!.Name</a>
+                <form asp-area="" asp-controller="Account" asp-action="Logout" method="post">
+                    <button class="btn btn-secondary" type="submit">Sign out</button>
+                </form>
+            }
+            else
+            {
+                <a class="btn btn-ghost" asp-area="" asp-controller="Account" asp-action="Login">Sign in</a>
+                <a class="btn btn-primary" asp-area="" asp-controller="Account" asp-action="Register">Create account</a>
+            }
+        </div>
+    </div>
+</header>
