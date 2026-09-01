@@ -1,0 +1,55 @@
+@model SafePathBD.Web.Models.DTOs.Reports.ReportCommentDto
+
+<li class="comment @(Model.IsDeleted ? "is-removed" : null)" data-comment-id="@Model.CommentId">
+    <span class="comment-avatar" aria-hidden="true">@Model.AuthorInitials</span>
+
+    <div class="comment-body">
+        <div class="comment-head">
+            <strong>@Model.AuthorName</strong>
+            @if (Model.AuthorIsStaff)
+            {
+                <span class="chip chip--accent chip--plain">Moderator</span>
+            }
+            <time datetime="@Model.CreatedAt.ToString("o")">@Model.CreatedAt.ToString("d MMM, HH:mm")</time>
+        </div>
+
+        <p class="comment-text">@Model.Text</p>
+
+        @if (!Model.IsDeleted)
+        {
+            <div class="comment-actions">
+                <button class="link-btn" type="button" data-reply-to="@Model.CommentId">Reply</button>
+                @if (Model.IsOwnComment)
+                {
+                    <button class="link-btn link-btn--danger" type="button" data-delete-comment="@Model.CommentId">Remove</button>
+                }
+            </div>
+        }
+
+        <ul class="comment-replies" data-replies-for="@Model.CommentId">
+            @foreach (var reply in Model.Replies)
+            {
+                <li class="comment comment--reply @(reply.IsDeleted ? "is-removed" : null)" data-comment-id="@reply.CommentId">
+                    <span class="comment-avatar" aria-hidden="true">@reply.AuthorInitials</span>
+                    <div class="comment-body">
+                        <div class="comment-head">
+                            <strong>@reply.AuthorName</strong>
+                            @if (reply.AuthorIsStaff)
+                            {
+                                <span class="chip chip--accent chip--plain">Moderator</span>
+                            }
+                            <time datetime="@reply.CreatedAt.ToString("o")">@reply.CreatedAt.ToString("d MMM, HH:mm")</time>
+                        </div>
+                        <p class="comment-text">@reply.Text</p>
+                        @if (!reply.IsDeleted && reply.IsOwnComment)
+                        {
+                            <div class="comment-actions">
+                                <button class="link-btn link-btn--danger" type="button" data-delete-comment="@reply.CommentId">Remove</button>
+                            </div>
+                        }
+                    </div>
+                </li>
+            }
+        </ul>
+    </div>
+</li>
