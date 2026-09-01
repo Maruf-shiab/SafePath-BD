@@ -1,0 +1,533 @@
+/* SafePath BD — moderation workspace.
+   Extends the shared design system; introduces no competing tokens. */
+
+/* ------------------------------------------------------------------ queue */
+
+.mod-layout {
+    display: grid;
+    grid-template-columns: 268px minmax(0, 1fr);
+    gap: var(--space-6);
+    align-items: start;
+}
+
+.mod-filters {
+    position: sticky;
+    top: calc(var(--navbar-height) + var(--space-4));
+    padding: var(--space-5);
+    background: var(--surface-1);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.mod-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.mod-filter-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+}
+
+.mod-filter-label {
+    font-size: var(--text-micro);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.mod-status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mod-status-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-xs);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    text-decoration: none;
+    transition: background var(--motion-fast) var(--ease-standard),
+                color var(--motion-fast) var(--ease-standard);
+}
+
+.mod-status-item:hover {
+    background: var(--surface-2);
+    color: var(--text-primary);
+}
+
+.mod-status-item.is-active {
+    background: var(--accent-primary-soft);
+    color: var(--accent-strong);
+    box-shadow: inset 2px 0 0 var(--accent-primary);
+}
+
+.mod-status-count {
+    font-variant-numeric: tabular-nums;
+    font-size: var(--text-micro);
+    color: var(--text-muted);
+}
+
+.mod-status-item.is-active .mod-status-count {
+    color: var(--accent-strong);
+}
+
+.mod-filter-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.mod-queue-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+
+.mod-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.mod-row-link {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-4);
+    background: var(--surface-1);
+    border: 1px solid var(--border-subtle);
+    border-left: 3px solid var(--report-color, var(--accent-primary));
+    border-radius: var(--radius-md);
+    color: inherit;
+    text-decoration: none;
+    transition: transform var(--motion-fast) var(--ease-standard),
+                border-color var(--motion-fast) var(--ease-standard),
+                background var(--motion-fast) var(--ease-standard);
+}
+
+.mod-row-link:hover {
+    transform: translateX(2px);
+    background: var(--surface-2);
+    border-color: var(--border-strong);
+    border-left-color: var(--report-color, var(--accent-primary));
+}
+
+.mod-row-type {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--report-color) 14%, transparent);
+    color: var(--report-color);
+}
+
+.mod-row-type svg {
+    width: 21px;
+    height: 21px;
+}
+
+.mod-row-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    min-width: 0;
+}
+
+.mod-row-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mod-row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-3);
+    font-size: var(--text-meta);
+    color: var(--text-muted);
+}
+
+.mod-row-meta > span + span::before {
+    content: "·";
+    margin-right: var(--space-3);
+    color: var(--text-muted);
+}
+
+.mod-row-trust {
+    display: flex;
+    gap: var(--space-2);
+}
+
+/* .trust-pip lives in reports.css so the map drawer can reuse it. */
+
+/* -------------------------------------------------------- review workspace */
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    text-decoration: none;
+}
+
+.back-link:hover {
+    color: var(--accent-primary);
+}
+
+.back-link svg {
+    width: 16px;
+    height: 16px;
+}
+
+.review-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 356px;
+    gap: var(--space-6);
+    align-items: start;
+}
+
+.review-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    min-width: 0;
+}
+
+.review-head-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+.review-map-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.review-map {
+    height: 300px;
+    background: var(--bg-secondary);
+}
+
+.review-map-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--border-subtle);
+}
+
+.evidence-strip {
+    display: flex;
+    gap: var(--space-3);
+    overflow-x: auto;
+    padding-bottom: var(--space-2);
+    scrollbar-width: thin;
+}
+
+.evidence-item {
+    flex: 0 0 auto;
+    width: 168px;
+    height: 118px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    overflow: hidden;
+    transition: transform var(--motion-fast) var(--ease-standard),
+                border-color var(--motion-fast) var(--ease-standard);
+}
+
+.evidence-item:hover {
+    transform: scale(1.02);
+    border-color: var(--border-accent);
+}
+
+.evidence-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.empty-inline {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+}
+
+.review-side {
+    min-width: 0;
+}
+
+.review-sticky {
+    position: sticky;
+    top: calc(var(--navbar-height) + var(--space-4));
+    display: flex;
+    flex-direction: column;
+}
+
+.prewrap {
+    white-space: pre-line;
+}
+
+/* ------------------------------------------------------------ action panel */
+
+.action-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+}
+
+.action-btn {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    text-align: left;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-2);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: transform var(--motion-fast) var(--ease-standard),
+                border-color var(--motion-fast) var(--ease-standard),
+                background var(--motion-fast) var(--ease-standard);
+}
+
+.action-btn:hover {
+    transform: translateY(-1px);
+}
+
+.action-btn:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+.action-btn-label {
+    font-weight: 600;
+    font-size: var(--text-sm);
+}
+
+.action-btn-hint {
+    font-size: var(--text-micro);
+    color: var(--text-muted);
+    line-height: 1.45;
+}
+
+/* Hierarchy: verify carries the most weight, reject the loudest warning. */
+.action-btn--positive {
+    background: var(--accent-primary-soft);
+    border-color: var(--accent-primary-line);
+    color: var(--accent-strong);
+}
+
+.action-btn--positive:hover {
+    background: color-mix(in srgb, var(--accent-primary) 22%, transparent);
+}
+
+.action-btn--caution {
+    border-color: color-mix(in srgb, var(--caution) 34%, transparent);
+}
+
+.action-btn--caution .action-btn-label {
+    color: var(--caution);
+}
+
+.action-btn--warning {
+    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+}
+
+.action-btn--warning .action-btn-label {
+    color: var(--warning);
+}
+
+.action-btn--danger {
+    border-color: color-mix(in srgb, var(--danger) 34%, transparent);
+}
+
+.action-btn--danger .action-btn-label {
+    color: var(--danger);
+}
+
+.action-btn--danger:hover {
+    background: var(--danger-soft);
+}
+
+/* ------------------------------------------------------------------ modal */
+
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: grid;
+    place-items: center;
+    padding: var(--space-4);
+}
+
+/* An author display rule beats the UA [hidden] rule, so restate it or the
+   invisible scrim swallows every click on the page behind it. */
+.modal[hidden] {
+    display: none;
+}
+
+.modal-scrim {
+    position: absolute;
+    inset: 0;
+    background: rgba(2, 8, 18, 0.68);
+    opacity: 0;
+    transition: opacity var(--motion-medium) var(--ease-standard);
+}
+
+.modal.is-open .modal-scrim {
+    opacity: 1;
+}
+
+.modal-card {
+    position: relative;
+    width: min(480px, 100%);
+    padding: var(--space-6);
+    background: var(--surface-1);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+    transition: opacity var(--motion-medium) var(--ease-standard),
+                transform var(--motion-medium) var(--ease-spring);
+}
+
+.modal.is-open .modal-card {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.modal-report {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin: var(--space-4) 0;
+    padding: var(--space-3);
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-3);
+    margin-top: var(--space-5);
+}
+
+.field-optional {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+/* ------------------------------------------------------------- responsive */
+
+@media (max-width: 1100px) {
+    .mod-layout,
+    .review-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .mod-filters,
+    .review-sticky {
+        position: static;
+    }
+}
+
+@media (max-width: 720px) {
+    .mod-row-link {
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-areas:
+            "icon main"
+            "trust status";
+        row-gap: var(--space-3);
+    }
+
+    .mod-row-type { grid-area: icon; }
+    .mod-row-main { grid-area: main; }
+    .mod-row-trust { grid-area: trust; }
+    .mod-row-link .status-chip { grid-area: status; justify-self: end; }
+
+    .mod-row-title {
+        white-space: normal;
+    }
+
+    .review-map {
+        height: 220px;
+    }
+
+    /* The decision panel becomes a reachable bottom sheet rather than a lost sidebar. */
+    .action-panel {
+        position: sticky;
+        bottom: 0;
+        z-index: 5;
+        padding-bottom: calc(var(--space-4) + var(--safe-bottom));
+        box-shadow: var(--shadow-float);
+    }
+
+    .modal {
+        place-items: end center;
+        padding: 0;
+    }
+
+    .modal-card {
+        width: 100%;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        padding-bottom: calc(var(--space-6) + var(--safe-bottom));
+        transform: translateY(100%);
+    }
+
+    .modal.is-open .modal-card {
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mod-row-link,
+    .action-btn,
+    .evidence-item,
+    .modal-scrim,
+    .modal-card {
+        transition: none;
+    }
+
+    .mod-row-link:hover,
+    .action-btn:hover,
+    .evidence-item:hover {
+        transform: none;
+    }
+
+    .modal-card {
+        transform: none;
+    }
+}

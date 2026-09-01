@@ -1,0 +1,9 @@
+@model int
+
+<a class="nav-link-badge" asp-area="Admin" asp-controller="ReportModeration" asp-action="Index">
+    Review
+    @if (Model > 0)
+    {
+        <span class="nav-badge" aria-label="@Model reports awaiting review">@Model</span>
+    }
+</a>
