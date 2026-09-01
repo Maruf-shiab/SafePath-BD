@@ -1,0 +1,124 @@
+/* ==========================================================================
+   SafePath BD — Design tokens
+   Single source of truth for colour, type, spacing, elevation and motion.
+   ========================================================================== */
+
+:root {
+    /* Surfaces --------------------------------------------------------- */
+    --bg-primary: #07111f;
+    --bg-secondary: #0a1628;
+    --bg-tertiary: #0e1b2c;
+    --surface-1: #111f31;
+    --surface-2: #14243a;
+    --surface-3: #1a2c45;
+    --surface-float: rgba(17, 31, 49, 0.9);
+
+    /* Text ------------------------------------------------------------- */
+    --text-primary: #f4f8fc;
+    --text-secondary: #a7b6c8;
+    --text-muted: #74849a;
+    --text-on-accent: #032420;
+
+    /* Accent ----------------------------------------------------------- */
+    --accent-primary: #2fd3b4;
+    --accent-strong: #55e8cb;
+    --accent-deep: #109a86;
+    --accent-primary-soft: rgba(47, 211, 180, 0.13);
+    --accent-primary-line: rgba(47, 211, 180, 0.32);
+
+    /* Semantic risk / status ------------------------------------------- */
+    --safe: #3ddc97;
+    --safe-soft: rgba(61, 220, 151, 0.13);
+    --caution: #f5c25b;
+    --caution-soft: rgba(245, 194, 91, 0.13);
+    --warning: #f59e0b;
+    --danger: #f0656a;
+    --danger-soft: rgba(240, 101, 106, 0.13);
+    --info: #57a6f5;
+    --info-soft: rgba(87, 166, 245, 0.13);
+
+    /* Emergency service families --------------------------------------- */
+    --svc-hospital: #f0656a;
+    --svc-police: #57a6f5;
+    --svc-fire: #f59e0b;
+    --svc-ambulance: #2fd3b4;
+    --svc-center: #a98bf0;
+
+    /* Borders ---------------------------------------------------------- */
+    --border-subtle: rgba(255, 255, 255, 0.07);
+    --border-strong: rgba(255, 255, 255, 0.13);
+    --border-accent: rgba(47, 211, 180, 0.4);
+
+    /* Elevation -------------------------------------------------------- */
+    --shadow-sm: 0 6px 20px rgba(0, 0, 0, 0.24);
+    --shadow-md: 0 16px 40px rgba(0, 0, 0, 0.34);
+    --shadow-lg: 0 30px 74px rgba(0, 0, 0, 0.46);
+    --shadow-float: 0 20px 48px rgba(2, 8, 18, 0.6);
+    --glow-accent: 0 0 0 1px var(--border-accent), 0 18px 44px rgba(47, 211, 180, 0.18);
+
+    /* Radius ----------------------------------------------------------- */
+    --radius-xs: 8px;
+    --radius-sm: 12px;
+    --radius-md: 16px;
+    --radius-lg: 22px;
+    --radius-xl: 26px;
+    --radius-pill: 999px;
+
+    /* Spacing (8px rhythm) --------------------------------------------- */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-7: 48px;
+    --space-8: 64px;
+    --space-9: 96px;
+
+    /* Typography ------------------------------------------------------- */
+    --font-sans: "Inter", "Manrope", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+
+    --text-display: clamp(2.75rem, 1.6rem + 3.8vw, 4.6rem);
+    --text-h1: clamp(2rem, 1.4rem + 2.2vw, 3rem);
+    --text-h2: clamp(1.5rem, 1.2rem + 1.1vw, 2.125rem);
+    --text-h3: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
+    --text-body: 1rem;
+    --text-sm: 0.9375rem;
+    --text-meta: 0.8125rem;
+    --text-micro: 0.75rem;
+
+    --leading-tight: 1.08;
+    --leading-heading: 1.2;
+    --leading-body: 1.65;
+    --tracking-eyebrow: 0.15em;
+
+    /* Layout ----------------------------------------------------------- */
+    --shell-max: 1200px;
+    --shell-gutter: var(--space-5);
+    --navbar-height: 72px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+    /* Motion ----------------------------------------------------------- */
+    --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-soft: cubic-bezier(0.25, 0.8, 0.25, 1);
+    --ease-emphasized: cubic-bezier(0.2, 0.9, 0.15, 1);
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+    --motion-fast: 140ms;
+    --motion-medium: 260ms;
+    --motion-slow: 420ms;
+    --motion-cinematic: 760ms;
+
+    /* Legacy aliases so existing rules keep working. */
+    --dur-micro: var(--motion-fast);
+    --dur-ui: var(--motion-medium);
+    --dur-panel: 320ms;
+    --dur-cinematic: var(--motion-cinematic);
+
+    /* Decorative map linework ------------------------------------------ */
+    --grid-line: rgba(255, 255, 255, 0.032);
+    --grid-size: 56px;
+    --contour-line: rgba(47, 211, 180, 0.05);
+}
