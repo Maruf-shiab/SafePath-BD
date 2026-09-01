@@ -1,0 +1,146 @@
+/* ==========================================================================
+   SafePath BD — Motion system
+   Entrance choreography, route drawing, ambient states, reduced motion.
+   ========================================================================== */
+
+/* Scroll / load reveal ---------------------------------------------------- */
+
+[data-reveal] {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity var(--dur-cinematic) var(--ease-standard),
+                transform var(--dur-cinematic) var(--ease-standard);
+    transition-delay: var(--reveal-delay, 0ms);
+}
+
+[data-reveal].is-visible {
+    opacity: 1;
+    transform: none;
+}
+
+/* Page entrance ----------------------------------------------------------- */
+
+@keyframes sp-page-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+}
+
+.app-main > * {
+    animation: sp-page-in var(--dur-ui) var(--ease-standard) both;
+}
+
+/* Hero route drawing ------------------------------------------------------ */
+
+@keyframes sp-draw {
+    to { stroke-dashoffset: 0; }
+}
+
+@keyframes sp-node-in {
+    from { opacity: 0; transform: scale(0.6); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes sp-pulse {
+    0%   { transform: scale(1);    opacity: 0.55; }
+    70%  { transform: scale(1.75); opacity: 0; }
+    100% { transform: scale(1.75); opacity: 0; }
+}
+
+.route-visual .rv-route {
+    stroke-dasharray: var(--rv-length, 1400);
+    stroke-dashoffset: var(--rv-length, 1400);
+    animation: sp-draw 1800ms var(--ease-standard) 260ms forwards;
+}
+
+.route-visual .rv-node {
+    opacity: 0;
+    animation: sp-node-in 420ms var(--ease-spring) forwards;
+    animation-delay: var(--node-delay, 0ms);
+}
+
+.route-visual .rv-node-ring {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: sp-pulse 3200ms var(--ease-soft) infinite;
+    animation-delay: var(--node-delay, 0ms);
+}
+
+/* Ambient accent sweep on the CTA band ------------------------------------ */
+
+@keyframes sp-sweep {
+    from { transform: translateX(-30%); }
+    to   { transform: translateX(130%); }
+}
+
+.cta-band::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    width: 30%;
+    background: linear-gradient(90deg, transparent, rgba(53, 208, 186, 0.07), transparent);
+    animation: sp-sweep 6s var(--ease-soft) infinite;
+    pointer-events: none;
+}
+
+/* Auth card entrance ------------------------------------------------------ */
+
+@keyframes sp-card-in {
+    from { opacity: 0; transform: translateY(14px) scale(0.985); }
+    to   { opacity: 1; transform: none; }
+}
+
+.auth-card {
+    animation: sp-card-in 420ms var(--ease-spring) both;
+}
+
+/* Factor bar growth ------------------------------------------------------- */
+
+.factor-fill {
+    transform: scaleX(0);
+    transition: transform 900ms var(--ease-standard);
+    transition-delay: var(--reveal-delay, 0ms);
+}
+
+.is-visible .factor-fill,
+.factor-row.is-visible .factor-fill {
+    transform: scaleX(var(--factor-scale, 1));
+}
+
+/* Reduced motion ---------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    [data-reveal] {
+        opacity: 1;
+        transform: none;
+    }
+
+    .route-visual .rv-route {
+        stroke-dashoffset: 0;
+    }
+
+    .route-visual .rv-node {
+        opacity: 1;
+    }
+
+    .route-visual .rv-node-ring {
+        animation: none;
+        opacity: 0.5;
+    }
+
+    .cta-band::after { display: none; }
+
+    .factor-fill { transform: scaleX(var(--factor-scale, 1)); }
+
+    .route-visual { transform: none !important; }
+}
