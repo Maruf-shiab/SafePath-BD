@@ -4,27 +4,7 @@
 (function () {
     "use strict";
 
-    var root = document.querySelector("[data-map-root]");
-    if (!root || typeof L === "undefined") {
-        return;
-    }
-
-    var config = JSON.parse(root.getAttribute("data-map-config") || "{}");
-    var SPM = window.SafePathMap;
-    var reduceMotion = SPM.prefersReducedMotion();
-    var toast = window.SafePathToast || { show: function () {} };
-
-    var state = {
-        map: null,
-        emergencyLayer: null,
-        reportLayer: null,
-        markersById: {},
-        services: [],
-        reports: [],
-        reportMarkersById: {},
-        selectedId: null,
-        activeType: null,
-        userLocation: null,
+    ll,
         userMarker: null,
         pickedMarker: null,
         startMarker: null,

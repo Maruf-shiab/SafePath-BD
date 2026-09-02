@@ -6,12 +6,7 @@
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-    function revealAll(elements) {
-        elements.forEach(function (el) {
-            el.classList.add("is-visible");
-        });
-    }
-
+    
     function initReveals() {
         const elements = Array.prototype.slice.call(document.querySelectorAll("[data-reveal]"));
         if (!elements.length) {
