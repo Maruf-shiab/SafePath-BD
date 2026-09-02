@@ -6,3 +6,192 @@
     var firstName = profile.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? profile.FullName;
 }
 
+@section Head {
+    <link rel="stylesheet" href="~/css/reports.css" asp-append-version="true" />
+}
+
+<partial name="_PageHeader" model="@(new PageHeaderViewModel
+{
+    Eyebrow = "Your workspace",
+    Title = $"Welcome back, {firstName}",
+    Description = "Report what you see on the road, follow your submissions, and explore the safety map.",
+    Chips = profile.Roles.Select(r => new PageHeaderChip(r, r == RoleNames.Admin ? "chip--accent" : "chip--muted")).ToList()
+})" />
+
+<section class="section section--tight">
+    <div class="shell dash-grid">
+        <div class="stack-5">
+            <div class="panel">
+                <div class="stack-2" style="margin-bottom: var(--space-5);">
+                    <h2 class="t-h3">Quick actions</h2>
+                    <p class="t-meta">Reporting, the map and emergency service search are live.</p>
+                </div>
+
+                <div class="tile-grid">
+                    <a class="card card--interactive" asp-controller="Reports" asp-action="Accident">
+                        <span class="card-icon card-icon--danger" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 16.5V13l1.8-4.2A2 2 0 0 1 7.7 7.5h8.6a2 2 0 0 1 1.9 1.3L20 13v3.5" />
+                                <path d="M4 16.5h16M6.8 16.5v2M17.2 16.5v2M7.5 12.7h9" />
+                            </svg>
+                        </span>
+                        <h3 class="t-h3 card-title">Report an accident</h3>
+                        <p class="t-body">Record what happened, where, and how severe it was.</p>
+                    </a>
+
+                    <a class="card card--interactive" asp-controller="Reports" asp-action="Hazard">
+                        <span class="card-icon card-icon--caution" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 9.2v4M12 16.4h.01" />
+                                <path d="M10.3 4.4 2.6 17.6a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.4a2 2 0 0 0-3.4 0Z" />
+                            </svg>
+                        </span>
+                        <h3 class="t-h3 card-title">Report a hazard</h3>
+                        <p class="t-body">Potholes, waterlogging, broken signals and blockages.</p>
+                    </a>
+
+                    <a class="card card--interactive" asp-controller="Map" asp-action="Index">
+                        <span class="card-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 4-6 2.5v13L9 17l6 3 6-2.5v-13L15 7 9 4Z" /><path d="M9 4v13M15 7v13" /></svg>
+                        </span>
+                        <h3 class="t-h3 card-title">Open the map</h3>
+                        <p class="t-body">Explore the road network and verified reports.</p>
+                    </a>
+
+                    <a class="card card--interactive" asp-controller="Map" asp-action="Index">
+                        <span class="card-icon card-icon--info" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v10M7 12h10" /><rect x="3.5" y="3.5" width="17" height="17" rx="4" /></svg>
+                        </span>
+                        <h3 class="t-h3 card-title">Emergency services</h3>
+                        <p class="t-body">Find nearby hospitals, police, fire services and ambulances.</p>
+                    </a>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="cluster" style="justify-content: space-between; margin-bottom: var(--space-5);">
+                    <div class="stack-2">
+                        <h2 class="t-h3">Your reports</h2>
+                        <p class="t-meta">Counts come from your submitted reports.</p>
+                    </div>
+                    @if (stats.Total > 0)
+                    {
+                        <a class="btn btn-ghost" asp-controller="Reports" asp-action="My">View all</a>
+                    }
+                </div>
+
+                <div class="stat-strip">
+                    <div class="stat">
+                        <span class="stat-value">@stats.Total</span>
+                        <span class="stat-label">Total</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value">@stats.Pending</span>
+                        <span class="stat-label">Awaiting review</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value">@stats.Verified</span>
+                        <span class="stat-label">Verified</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value">@stats.Resolved</span>
+                        <span class="stat-label">Resolved</span>
+                    </div>
+                </div>
+
+                @if (Model.RecentReports.Count == 0)
+                {
+                    <div class="empty-state" style="margin-top: var(--space-4);">
+                        <h3 class="t-h3">No reports yet</h3>
+                        <p class="t-body">Your submissions will appear here with their review status.</p>
+                        <div class="cluster">
+                            <a class="btn btn-primary" asp-controller="Reports" asp-action="Accident">Report an accident</a>
+                            <a class="btn btn-secondary" asp-controller="Reports" asp-action="Hazard">Report a hazard</a>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="report-list" style="margin-top: var(--space-4);">
+                        @foreach (var report in Model.RecentReports)
+                        {
+                            <partial name="_ReportCard" model="report" />
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="panel">
+                <div class="stack-2" style="margin-bottom: var(--space-5);">
+                    <h2 class="t-h3">Modules in progress</h2>
+                    <p class="t-meta">These arrive in later development phases.</p>
+                </div>
+
+                <div class="tile-grid">
+                    <div class="module-tile">
+                        <h3 class="t-h3">Community verification</h3>
+                        <p class="t-meta">Confirm or dispute reports and discuss them with other travellers.</p>
+                        <span class="chip chip--safe">Available</span>
+                    </div>
+                    <div class="module-tile">
+                        <h3 class="t-h3">Safe route comparison</h3>
+                        <p class="t-meta">Compare safest, fastest and shortest with an explainable score.</p>
+                        <span class="chip chip--muted">Planned</span>
+                    </div>
+                    <div class="module-tile">
+                        <h3 class="t-h3">Saved places &amp; routes</h3>
+                        <p class="t-meta">Keep the journeys and locations you use most within reach.</p>
+                        <span class="chip chip--muted">Planned</span>
+                    </div>
+                    <div class="module-tile">
+                        <h3 class="t-h3">Notifications</h3>
+                        <p class="t-meta">Hear back when a report you submitted has been reviewed.</p>
+                        <span class="chip chip--muted">Planned</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <aside class="stack-5">
+            <div class="panel">
+                <div class="identity" style="margin-bottom: var(--space-5);">
+                    <span class="avatar" aria-hidden="true">@profile.Initials</span>
+                    <div class="stack-2">
+                        <strong>@profile.FullName</strong>
+                        <span class="t-meta">@profile.Email</span>
+                    </div>
+                </div>
+
+                <dl class="detail-list">
+                    <div class="detail-row">
+                        <dt>Account status</dt>
+                        <dd><span class="chip @(profile.IsActive ? "chip--safe" : "chip--danger")">@(profile.IsActive ? "Active" : "Deactivated")</span></dd>
+                    </div>
+                    <div class="detail-row">
+                        <dt>Roles</dt>
+                        <dd>@string.Join(", ", profile.Roles)</dd>
+                    </div>
+                    <div class="detail-row">
+                        <dt>Member since</dt>
+                        <dd>@profile.JoinedAt.ToString("d MMM yyyy")</dd>
+                    </div>
+                </dl>
+
+                <a class="btn btn-secondary btn-block" asp-controller="Profile" asp-action="Index" style="margin-top: var(--space-5);">
+                    View full profile
+                </a>
+            </div>
+
+            @if (User.IsInRole(RoleNames.Admin))
+            {
+                <div class="panel">
+                    <h3 class="t-h3 card-title">Administration</h3>
+                    <p class="t-body">You have administrator access to the SafePath BD management area.</p>
+                    <a class="btn btn-primary btn-block" asp-area="Admin" asp-controller="Dashboard" asp-action="Index" style="margin-top: var(--space-4);">
+                        Open admin area
+                    </a>
+                </div>
+            }
+        </aside>
+    </div>
+</section>
