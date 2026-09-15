@@ -38,8 +38,14 @@ internal sealed class ReportTestContext : IDisposable
         }
 
         Db.AccidentTypes.Add(new AccidentTypes { AccidentTypeId = 1, TypeName = "Vehicle Collision", IsActive = true, DefaultRiskWeight = 2m });
-        Db.AccidentSeverities.Add(new AccidentSeverities { SeverityId = 2, SeverityName = "Moderate", RiskWeight = 2m });
-        Db.HazardTypes.Add(new HazardTypes { HazardTypeId = 1, HazardName = "Pothole", IsActive = true, DefaultRiskWeight = 1m });
+        Db.AccidentSeverities.AddRange(
+            new AccidentSeverities { SeverityId = 1, SeverityName = "Minor", RiskWeight = 1m },
+            new AccidentSeverities { SeverityId = 2, SeverityName = "Moderate", RiskWeight = 2m },
+            new AccidentSeverities { SeverityId = 3, SeverityName = "Severe", RiskWeight = 4m },
+            new AccidentSeverities { SeverityId = 4, SeverityName = "Fatal", RiskWeight = 5m });
+        Db.HazardTypes.AddRange(
+            new HazardTypes { HazardTypeId = 1, HazardName = "Pothole", IsActive = true, DefaultRiskWeight = 1m },
+            new HazardTypes { HazardTypeId = 2, HazardName = "Road Block", IsActive = true, DefaultRiskWeight = 3m });
         Db.NotificationTypes.AddRange(
             new NotificationTypes { NotificationTypeId = 1, TypeCode = NotificationTypeCodes.ReportVerified, TypeName = "Report Verified" },
             new NotificationTypes { NotificationTypeId = 2, TypeCode = NotificationTypeCodes.ReportRejected, TypeName = "Report Rejected" },

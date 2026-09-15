@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SafePathBD.Web\SafePathBD.Web.csproj" />
+    <ProjectReference Include="..\SafePathBD.ML.Training\SafePathBD.ML.Training.csproj" />
   </ItemGroup>
 
 </Project>

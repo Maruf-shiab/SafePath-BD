@@ -43,6 +43,44 @@
 .map-panel--search {
     top: var(--space-4);
     left: var(--space-4);
+
+    /* Chunk 7 contains a much taller intelligent-mobility form.
+       Keep it inside the visible map workspace. */
+    max-height: calc(100% - 92px);
+
+    /* Allow the complete planner to be reached instead of being cut off. */
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    /* Keep mouse-wheel/touch scrolling inside the planner. */
+    overscroll-behavior: contain;
+
+    /* Prevent content width from jumping when scrollbar appears. */
+    scrollbar-gutter: stable;
+
+    /* Above map filters, but below route results drawer (drawer = 600). */
+    z-index: 560;
+
+    /* Firefox scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+}
+
+.map-panel--search::-webkit-scrollbar {
+    width: 6px;
+}
+
+.map-panel--search::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.map-panel--search::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: var(--radius-pill);
+}
+
+.map-panel--search::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
 }
 
 .map-panel-head {
@@ -235,6 +273,10 @@
 .map-filters {
     left: var(--space-4);
     bottom: var(--space-4);
+
+    /* Keep filters below the journey planner. */
+    z-index: 520;
+
     display: flex;
     flex-wrap: nowrap;
     gap: var(--space-2);
@@ -242,8 +284,12 @@
     overflow-x: auto;
     padding-bottom: 2px;
     scrollbar-width: none;
-    /* Fades the tail so an overflowing chip row reads as scrollable, not clipped. */
-    mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent);
+
+    mask-image: linear-gradient(
+        90deg,
+        #000 calc(100% - 36px),
+        transparent
+    );
 }
 
 .map-filters::-webkit-scrollbar { display: none; }
@@ -731,13 +777,25 @@
     }
 
     /* Keep the map dominant: the planning panel stays deliberately compact. */
-    .map-panel--search {
-        top: var(--space-3);
-        left: var(--space-3);
-        right: var(--space-3);
-        width: auto;
-        padding: var(--space-3);
-    }
+.map-panel--search {
+    top: var(--space-3);
+    left: var(--space-3);
+    right: var(--space-3);
+    width: auto;
+    padding: var(--space-3);
+
+    /*
+       Reserve space at the bottom for the emergency-filter strip.
+       The full Chunk 7 form remains accessible through scrolling.
+    */
+    max-height: calc(100% - 84px);
+
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+
+    z-index: 560;
+}
 
     .map-panel-head { margin-bottom: var(--space-3); }
 
@@ -799,8 +857,21 @@
 }
 
 @media (max-width: 420px) {
-    .map-panel { padding: var(--space-3); }
-    .route-actions { flex-direction: column; }
+    .map-panel {
+        padding: var(--space-3);
+    }
+
+    .route-actions {
+        flex-direction: column;
+    }
+
+    /*
+       On very small phones, preserve enough map space while making
+       the entire planner vertically scrollable.
+    */
+    .map-panel--search {
+        max-height: calc(100% - 78px);
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

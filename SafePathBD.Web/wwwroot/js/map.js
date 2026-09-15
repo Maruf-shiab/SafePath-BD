@@ -32,7 +32,8 @@
         start: null,
         end: null,
         emergencyVisible: true,
-        reportsVisible: false
+        reportsVisible: false,
+        endpointListeners: []
     };
 
     var el = {
@@ -115,46 +116,58 @@
     function locateUser(options) {
         var opts = options || {};
 
-        if (!("geolocation" in navigator)) {
-            toast.error("This browser does not support location sharing. You can still pick a point on the map.");
-            return;
-        }
+        return new Promise(function (resolve, reject) {
+            if (!("geolocation" in navigator)) {
+                var unsupported = new Error("Geolocation is not supported by this browser.");
+                toast.error("This browser does not support location sharing. You can still pick a point on the map.");
+                reject(unsupported);
+                return;
+            }
 
-        el.locateBtn.classList.add("is-busy");
-        el.locateBtn.setAttribute("aria-busy", "true");
+            el.locateBtn.classList.add("is-busy");
+            el.locateBtn.setAttribute("aria-busy", "true");
 
-        navigator.geolocation.getCurrentPosition(
-            function (position) {
-                el.locateBtn.classList.remove("is-busy");
-                el.locateBtn.removeAttribute("aria-busy");
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
+                    el.locateBtn.classList.remove("is-busy");
+                    el.locateBtn.removeAttribute("aria-busy");
 
-                var lat = position.coords.latitude;
-                var lng = position.coords.longitude;
-                state.userLocation = { lat: lat, lng: lng };
+                    var lat = position.coords.latitude;
+                    var lng = position.coords.longitude;
+                    state.userLocation = { lat: lat, lng: lng };
 
-                state.userMarker = setSingleMarker(state.userMarker, lat, lng, locateIcon(), "Your location");
-                flyTo(lat, lng, Math.max(state.map.getZoom(), 14));
+                    state.userMarker = setSingleMarker(state.userMarker, lat, lng, locateIcon(), "Your location");
+                    flyTo(lat, lng, Math.max(state.map.getZoom(), 14));
 
-                if (!opts.silent) {
-                    toast.success("Location found.");
-                }
+                    if (opts.applyToStart) {
+                        var input = root.querySelector('[data-place-field="start"] input');
+                        input.value = "My location";
+                        applyPlace("start", lat, lng, "My location");
+                    }
 
-                loadNearby(lat, lng);
-            },
-            function (error) {
-                el.locateBtn.classList.remove("is-busy");
-                el.locateBtn.removeAttribute("aria-busy");
+                    if (!opts.silent) {
+                        toast.success("Location found.");
+                    }
 
-                if (error.code === error.PERMISSION_DENIED) {
-                    toast.warning("Location access was denied. Tap the map to choose a point instead.");
-                } else if (error.code === error.TIMEOUT) {
-                    toast.warning("Finding your location took too long. Try again or tap the map.");
-                } else {
-                    toast.warning("Your location is unavailable right now. Tap the map to choose a point.");
-                }
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-        );
+                    loadNearby(lat, lng);
+                    resolve({ lat: lat, lng: lng });
+                },
+                function (error) {
+                    el.locateBtn.classList.remove("is-busy");
+                    el.locateBtn.removeAttribute("aria-busy");
+
+                    if (error.code === error.PERMISSION_DENIED) {
+                        toast.warning("Location access was denied. Tap the map to choose a point instead.");
+                    } else if (error.code === error.TIMEOUT) {
+                        toast.warning("Finding your location took too long. Try again or tap the map.");
+                    } else {
+                        toast.warning("Your location is unavailable right now. Tap the map to choose a point.");
+                    }
+                    reject(error);
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+            );
+        });
     }
 
     /* -------------------------------------------------- map point selection */
@@ -649,6 +662,17 @@
         });
     }
 
+    function notifyEndpointsChanged() {
+        var snapshot = {
+            start: state.start ? Object.assign({}, state.start) : null,
+            destination: state.end ? Object.assign({}, state.end) : null
+        };
+
+        state.endpointListeners.slice().forEach(function (listener) {
+            try { listener(snapshot); } catch (error) { console.error("Endpoint listener failed", error); }
+        });
+    }
+
     function applyPlace(role, lat, lng, label) {
         if (role === "start") {
             state.start = { lat: lat, lng: lng, label: label };
@@ -667,12 +691,14 @@
         } else {
             flyTo(lat, lng, Math.max(state.map.getZoom(), 14));
         }
+
+        notifyEndpointsChanged();
     }
 
     /* ------------------------------------------------------------- wiring */
 
     function initControls() {
-        el.locateBtn.addEventListener("click", function () { locateUser(); });
+        el.locateBtn.addEventListener("click", function () { locateUser().catch(function () { }); });
 
         el.resetBtn.addEventListener("click", function () {
             flyTo(config.lat, config.lng, config.zoom);
@@ -731,8 +757,8 @@
 
         root.querySelector("[data-use-current-start]").addEventListener("click", function () {
             if (!state.userLocation) {
-                locateUser({ silent: true });
                 toast.info("Finding your location to use as the start point…");
+                locateUser({ silent: true, applyToStart: true }).catch(function () { });
                 return;
             }
             var input = root.querySelector('[data-place-field="start"] input');
@@ -743,16 +769,21 @@
         root.querySelector("[data-swap]").addEventListener("click", function () {
             var startInput = root.querySelector('[data-place-field="start"] input');
             var endInput = root.querySelector('[data-place-field="end"] input');
-            var swap = startInput.value;
+            var inputSwap = startInput.value;
             startInput.value = endInput.value;
-            endInput.value = swap;
+            endInput.value = inputSwap;
 
-            var start = state.start;
-            state.start = state.end;
-            state.end = start;
+            var nextStart = state.end;
+            var nextEnd = state.start;
 
-            if (state.start) { applyPlace("start", state.start.lat, state.start.lng, state.start.label); }
-            if (state.end) { applyPlace("end", state.end.lat, state.end.lng, state.end.label); }
+            if (state.startMarker) { state.map.removeLayer(state.startMarker); state.startMarker = null; }
+            if (state.endMarker) { state.map.removeLayer(state.endMarker); state.endMarker = null; }
+            state.start = null;
+            state.end = null;
+
+            if (nextStart) { applyPlace("start", nextStart.lat, nextStart.lng, nextStart.label); }
+            if (nextEnd) { applyPlace("end", nextEnd.lat, nextEnd.lng, nextEnd.label); }
+            if (!nextStart && !nextEnd) { notifyEndpointsChanged(); }
         });
 
         el.pointCard.querySelector("[data-set-start]").addEventListener("click", function () {
@@ -787,6 +818,49 @@
 
     initMap();
     initControls();
+
+    // Controlled integration surface for routing.js. The map workspace keeps ownership of
+    // endpoint state and the shared drawer; routing never initializes a second Leaflet map.
+    window.SafePathMapWorkspace = {
+        getMap: function () { return state.map; },
+        getStart: function () { return state.start ? Object.assign({}, state.start) : null; },
+        getDestination: function () { return state.end ? Object.assign({}, state.end) : null; },
+        getUserLocation: function () { return state.userLocation ? Object.assign({}, state.userLocation) : null; },
+        onEndpointsChanged: function (listener) {
+            if (typeof listener !== "function") { return function () { }; }
+            state.endpointListeners.push(listener);
+            return function () {
+                state.endpointListeners = state.endpointListeners.filter(function (item) { return item !== listener; });
+            };
+        },
+        renderDrawer: function (title, subtitle, html) {
+            openDrawer(title, subtitle);
+            el.drawerBody.innerHTML = html || "";
+            return el.drawerBody;
+        },
+        closeDrawer: closeDrawer,
+        fitCoordinates: function (coordinates, padding) {
+            if (!coordinates || !coordinates.length) { return; }
+            var bounds = L.latLngBounds(coordinates.map(function (point) {
+                return [point.latitude, point.longitude];
+            }));
+            state.map.fitBounds(bounds, { padding: padding || [70, 70], animate: !reduceMotion });
+        },
+        requestCurrentLocation: function (applyToStart, forceRefresh) {
+            if (state.userLocation && !forceRefresh) {
+                if (applyToStart) {
+                    var input = root.querySelector('[data-place-field="start"] input');
+                    input.value = "My location";
+                    applyPlace("start", state.userLocation.lat, state.userLocation.lng, "My location");
+                }
+                return Promise.resolve(Object.assign({}, state.userLocation));
+            }
+            return locateUser({ silent: true, applyToStart: Boolean(applyToStart) });
+        },
+        prefersReducedMotion: function () { return reduceMotion; }
+    };
+
+    notifyEndpointsChanged();
 })();
 
 

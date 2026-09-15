@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SafePathBD.Web", "SafePathB
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SafePathBD.Tests", "SafePathBD.Tests\SafePathBD.Tests.csproj", "{2CAEB374-C361-440A-B89F-CC9DD6CBF028}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SafePathBD.ML.Training", "SafePathBD.ML.Training\SafePathBD.ML.Training.csproj", "{A7E1E5A2-7A8C-45C7-90E1-7EE7B1834A77}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{2CAEB374-C361-440A-B89F-CC9DD6CBF028}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2CAEB374-C361-440A-B89F-CC9DD6CBF028}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2CAEB374-C361-440A-B89F-CC9DD6CBF028}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7E1E5A2-7A8C-45C7-90E1-7EE7B1834A77}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7E1E5A2-7A8C-45C7-90E1-7EE7B1834A77}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7E1E5A2-7A8C-45C7-90E1-7EE7B1834A77}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7E1E5A2-7A8C-45C7-90E1-7EE7B1834A77}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

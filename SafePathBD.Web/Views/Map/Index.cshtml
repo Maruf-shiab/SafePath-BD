@@ -16,9 +16,14 @@
     <link rel="stylesheet" href="~/lib/leaflet/leaflet.css" />
     <link rel="stylesheet" href="~/css/map.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/reports.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/routing.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/intelligent-routing.css" asp-append-version="true" />
 }
 
 <div class="map-workspace" data-map-root data-map-config="@mapConfig">
+    <form data-routing-antiforgery hidden aria-hidden="true">
+        @Html.AntiForgeryToken()
+    </form>
     <div class="map-canvas" data-map-canvas role="application" aria-label="SafePath BD interactive map"></div>
 
     <div class="map-loading" data-map-loading>
@@ -70,15 +75,78 @@
                 </svg>
                 <span>My location</span>
             </button>
-            <button class="btn btn-secondary is-disabled" type="button" disabled
-                    title="Route comparison arrives with the routing module">
-                Find safe route
+            <button class="btn btn-primary" type="button" data-find-routes disabled
+                    title="Choose a start and destination first">
+                <span data-find-routes-label>Find routes</span>
             </button>
         </div>
 
-        <p class="map-note">
-            Safest, fastest and shortest route comparison will be available in the routing module.
-            You can already set a start and destination, and search emergency services.
+        <div class="smart-journey" data-intelligent-controls>
+            <div class="smart-journey__head">
+                <div>
+                    <span class="t-eyebrow">SafePath intelligence</span>
+                    <p class="t-meta">Compare practical multimodal journeys with predicted traffic and verified road incidents.</p>
+                </div>
+                <span class="smart-journey__badge">Synthetic traffic prototype</span>
+            </div>
+
+            <div class="smart-journey__grid">
+                <fieldset class="smart-fieldset">
+                    <legend>Travel modes</legend>
+                    <div class="mode-pills" data-mode-pills>
+                        <label><input type="checkbox" value="WALK" checked /><span>Walk</span></label>
+                        <label><input type="checkbox" value="RICKSHAW" checked /><span>Rickshaw</span></label>
+                        <label><input type="checkbox" value="BUS" checked /><span>Bus</span></label>
+                        <label><input type="checkbox" value="MOTORBIKE" checked /><span>Motorbike</span></label>
+                        <label><input type="checkbox" value="CAR" /><span>Car</span></label>
+                    </div>
+                </fieldset>
+
+                <label class="smart-control">
+                    <span>Preference</span>
+                    <select class="input" data-journey-preference>
+                        <option value="BALANCED">Balanced</option>
+                        <option value="SAFETY_FIRST">Safety first</option>
+                        <option value="FASTEST_PRACTICAL">Fastest practical</option>
+                        <option value="LESS_WALKING">Less walking</option>
+                        <option value="FEWER_TRANSFERS">Fewer transfers</option>
+                    </select>
+                </label>
+
+                <label class="smart-control">
+                    <span>Maximum walking</span>
+                    <select class="input" data-max-walking>
+                        <option value="0">No walking</option>
+                        <option value="500">500 m</option>
+                        <option value="1000" selected>1 km</option>
+                        <option value="2000">2 km</option>
+                    </select>
+                </label>
+
+                <label class="smart-control">
+                    <span>Maximum transfers</span>
+                    <select class="input" data-max-transfers>
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2" selected>2</option>
+                    </select>
+                </label>
+
+                <div class="smart-control smart-control--departure">
+                    <span>Departure</span>
+                    <label class="smart-toggle"><input type="checkbox" data-leave-now checked /><span>Leave now</span></label>
+                    <input class="input" type="datetime-local" data-departure-time disabled aria-label="Custom departure time" />
+                </div>
+            </div>
+
+            <button class="btn btn-primary smart-journey__plan" type="button" data-plan-intelligent disabled>
+                <span data-plan-intelligent-label>Plan smart journey</span>
+            </button>
+            <p class="smart-journey__disclaimer">Predicted traffic uses the supplied synthetic SafePath development patterns. It is not measured live traffic. Safety output uses verified incidents and any available mapped safety data.</p>
+        </div>
+
+        <p class="map-note" data-route-hint>
+            Use <strong>Find routes</strong> for the Chunk 6 road alternatives, or <strong>Plan smart journey</strong> for multimodal traffic-aware recommendations.
         </p>
     </section>
 
@@ -142,7 +210,7 @@
     </div>
 
     @* Results / detail drawer — bottom sheet on mobile *@
-    <aside class="map-layer map-drawer" data-drawer aria-hidden="true" aria-label="Emergency service results">
+    <aside class="map-layer map-drawer" data-drawer aria-hidden="true" aria-label="Map results and route alternatives">
         <span class="drawer-handle" aria-hidden="true"></span>
         <div class="drawer-head">
             <div>
@@ -163,4 +231,6 @@
     <script src="~/lib/leaflet/leaflet.js"></script>
     <script src="~/js/safepath-map.js" asp-append-version="true"></script>
     <script src="~/js/map.js" asp-append-version="true"></script>
+    <script src="~/js/routing.js" asp-append-version="true"></script>
+    <script src="~/js/intelligent-routing.js" asp-append-version="true"></script>
 }
