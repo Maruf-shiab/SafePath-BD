@@ -136,9 +136,7 @@ public class MyReportsViewModel
 public class ReportDetailsViewModel
 {
     public ReportDetailsDto Report { get; init; } = null!;
-
     public ReportVoteSummaryDto? Votes { get; init; }
-
     public PagedResult<ReportCommentDto> Comments { get; init; } =
         new(Array.Empty<ReportCommentDto>(), 1, 10, 0);
 
@@ -148,4 +146,16 @@ public class ReportDetailsViewModel
     public bool IsSignedIn { get; init; }
 
     public bool ViewerIsStaff { get; init; }
+}
+
+public class CommunityReviewViewModel
+{
+    public PagedResult<CommunityReportSummaryDto> Reports { get; init; } =
+        new(Array.Empty<CommunityReportSummaryDto>(), 1, 20, 0);
+
+    public string? ReportType { get; init; }
+
+    public string? StatusCode { get; init; }
+
+    public bool HasAnyFilter => ReportType is not null || StatusCode is not null;
 }

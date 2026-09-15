@@ -46,7 +46,7 @@ public class ReportCommunityApiController : ControllerBase
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Vote(long reportId, [FromBody] VoteRequest request, CancellationToken cancellationToken)
     {
-        var result = await _community.CastVoteAsync((ulong)reportId, User.GetUserId(), request?.VoteType ?? string.Empty, cancellationToken);
+        var result = await _community.CastVoteAsync((ulong)reportId, Viewer, request?.VoteType ?? string.Empty, cancellationToken);
         return result.Succeeded ? Ok(ApiResult.Ok(result.Data!)) : Problem(result.Status, result.Message);
     }
 
@@ -55,7 +55,7 @@ public class ReportCommunityApiController : ControllerBase
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoveVote(long reportId, CancellationToken cancellationToken)
     {
-        var result = await _community.RemoveVoteAsync((ulong)reportId, User.GetUserId(), cancellationToken);
+        var result = await _community.RemoveVoteAsync((ulong)reportId, Viewer, cancellationToken);
         return result.Succeeded ? Ok(ApiResult.Ok(result.Data!)) : Problem(result.Status, result.Message);
     }
 
@@ -86,7 +86,7 @@ public class ReportCommunityApiController : ControllerBase
     public async Task<IActionResult> AddComment(long reportId, [FromBody] CommentRequest request, CancellationToken cancellationToken)
     {
         var result = await _community.AddCommentAsync(
-            (ulong)reportId, User.GetUserId(), request?.Text ?? string.Empty, request?.ParentCommentId, cancellationToken);
+            (ulong)reportId, Viewer, request?.Text ?? string.Empty, request?.ParentCommentId, cancellationToken);
 
         return result.Succeeded ? Ok(ApiResult.Ok(result.Data!)) : Problem(result.Status, result.Message);
     }
@@ -109,7 +109,8 @@ public class ReportCommunityApiController : ControllerBase
         {
             CommunityStatus.ReportNotFound or CommunityStatus.NotVisible or CommunityStatus.ParentNotFound
                 => NotFound(ApiResult.Fail(safeMessage)),
-            CommunityStatus.OwnReport => StatusCode(StatusCodes.Status403Forbidden, ApiResult.Fail(safeMessage)),
+            CommunityStatus.OwnReport or CommunityStatus.StaffCannotVote
+                => StatusCode(StatusCodes.Status403Forbidden, ApiResult.Fail(safeMessage)),
             _ => BadRequest(ApiResult.Fail(safeMessage))
         };
     }

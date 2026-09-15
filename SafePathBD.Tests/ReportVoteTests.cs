@@ -15,51 +15,97 @@ public class ReportVoteTests
     private static readonly ReportLocationInput Point =
         new(23.7465, 90.3760, "Dhanmondi 27", null, "Dhanmondi", "Dhaka", "Dhaka", "OSM");
 
-    private static async Task<ulong> AddPublicHazardAsync(ReportTestContext ctx)
+    /// <summary>A public hazard left PENDING — the state community review exists for.</summary>
+    private static async Task<ulong> AddPendingHazardAsync(ReportTestContext ctx)
     {
         var result = await ctx.Hazards.CreateAsync(
             new CreateHazardReportRequest(Owner, "Pothole", null, Point, 1, HazardRiskLevels.High, DateTime.Now, null),
             Array.Empty<StoredImage>());
 
-        ctx.SetStatus(result.ReportId, ReportStatusCodes.Verified);
         return result.ReportId;
     }
 
+    // ------------------------------------------------- pre-verification voting
+
     [Fact]
-    public async Task ASignedInUserCanConfirmAReport()
+    public async Task AMemberCanConfirmAPendingReportBeforeAnyModeratorSeesIt()
     {
         using var ctx = new ReportTestContext();
-        var reportId = await AddPublicHazardAsync(ctx);
+        var reportId = await AddPendingHazardAsync(ctx);
 
-        var result = await ctx.Community.CastVoteAsync(reportId, Voter, ReportVoteTypes.Confirm);
+        var result = await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Confirm);
 
         Assert.True(result.Succeeded);
         Assert.Equal(1, result.Data!.ConfirmCount);
-        Assert.Equal(0, result.Data.DisputeCount);
         Assert.Equal(ReportVoteTypes.Confirm, result.Data.CurrentUserVote);
     }
 
     [Fact]
-    public async Task ASignedInUserCanDisputeAReport()
+    public async Task AMemberCanDisputeAPendingReport()
     {
         using var ctx = new ReportTestContext();
-        var reportId = await AddPublicHazardAsync(ctx);
+        var reportId = await AddPendingHazardAsync(ctx);
 
-        var result = await ctx.Community.CastVoteAsync(reportId, Voter, ReportVoteTypes.Dispute);
+        var result = await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Dispute);
 
         Assert.True(result.Succeeded);
         Assert.Equal(1, result.Data!.DisputeCount);
-        Assert.Equal(ReportVoteTypes.Dispute, result.Data.CurrentUserVote);
     }
+
+    [Theory]
+    [InlineData(ReportStatusCodes.Pending)]
+    [InlineData(ReportStatusCodes.UnderReview)]
+    [InlineData(ReportStatusCodes.NeedsInfo)]
+    [InlineData(ReportStatusCodes.Verified)]
+    public async Task EveryCommunityReviewableStageAcceptsVotes(string statusCode)
+    {
+        using var ctx = new ReportTestContext();
+        var reportId = await AddPendingHazardAsync(ctx);
+        ctx.SetStatus(reportId, statusCode);
+
+        var result = await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Confirm);
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Theory]
+    [InlineData(ReportStatusCodes.Rejected)]
+    [InlineData(ReportStatusCodes.Duplicate)]
+    public async Task AClosedReportCannotBeVotedOn(string statusCode)
+    {
+        using var ctx = new ReportTestContext();
+        var reportId = await AddPendingHazardAsync(ctx);
+        ctx.SetStatus(reportId, statusCode);
+
+        var result = await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Confirm);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(CommunityStatus.ReportNotFound, result.Status);
+    }
+
+    [Fact]
+    public async Task APrivatePendingReportIsNotOpenToOtherMembers()
+    {
+        using var ctx = new ReportTestContext();
+        var reportId = await AddPendingHazardAsync(ctx);
+        ctx.SetStatus(reportId, ReportStatusCodes.Pending, isPublic: false);
+
+        var result = await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Confirm);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(CommunityStatus.ReportNotFound, result.Status);
+    }
+
+    // ------------------------------------------------------------- vote rules
 
     [Fact]
     public async Task SwitchingAVoteUpdatesTheExistingRowInsteadOfAddingAnother()
     {
         using var ctx = new ReportTestContext();
-        var reportId = await AddPublicHazardAsync(ctx);
+        var reportId = await AddPendingHazardAsync(ctx);
 
-        await ctx.Community.CastVoteAsync(reportId, Voter, ReportVoteTypes.Confirm);
-        var result = await ctx.Community.CastVoteAsync(reportId, Voter, ReportVoteTypes.Dispute);
+        await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Confirm);
+        var result = await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Dispute);
 
         Assert.Equal(1, await ctx.Db.ReportVotes.CountAsync(v => v.ReportId == reportId));
         Assert.Equal(0, result.Data!.ConfirmCount);
@@ -70,24 +116,24 @@ public class ReportVoteTests
     public async Task RepeatingTheActiveVoteWithdrawsIt()
     {
         using var ctx = new ReportTestContext();
-        var reportId = await AddPublicHazardAsync(ctx);
+        var reportId = await AddPendingHazardAsync(ctx);
 
-        await ctx.Community.CastVoteAsync(reportId, Voter, ReportVoteTypes.Confirm);
-        var result = await ctx.Community.CastVoteAsync(reportId, Voter, ReportVoteTypes.Confirm);
+        await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Confirm);
+        var result = await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Confirm);
 
         Assert.Equal(0, await ctx.Db.ReportVotes.CountAsync(v => v.ReportId == reportId));
         Assert.Null(result.Data!.CurrentUserVote);
     }
 
     [Fact]
-    public async Task ManyVotesFromOneUserNeverCreateMoreThanOneRow()
+    public async Task ManyVotesFromOneMemberNeverCreateMoreThanOneRow()
     {
         using var ctx = new ReportTestContext();
-        var reportId = await AddPublicHazardAsync(ctx);
+        var reportId = await AddPendingHazardAsync(ctx);
 
-        await ctx.Community.CastVoteAsync(reportId, Voter, ReportVoteTypes.Confirm);
-        await ctx.Community.CastVoteAsync(reportId, Voter, ReportVoteTypes.Dispute);
-        await ctx.Community.CastVoteAsync(reportId, Voter, ReportVoteTypes.Confirm);
+        await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Confirm);
+        await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Dispute);
+        await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Confirm);
 
         Assert.Equal(1, await ctx.Db.ReportVotes.CountAsync(v => v.ReportId == reportId));
     }
@@ -96,9 +142,9 @@ public class ReportVoteTests
     public async Task AReporterCannotVoteOnTheirOwnReport()
     {
         using var ctx = new ReportTestContext();
-        var reportId = await AddPublicHazardAsync(ctx);
+        var reportId = await AddPendingHazardAsync(ctx);
 
-        var result = await ctx.Community.CastVoteAsync(reportId, Owner, ReportVoteTypes.Confirm);
+        var result = await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Owner), ReportVoteTypes.Confirm);
 
         Assert.False(result.Succeeded);
         Assert.Equal(CommunityStatus.OwnReport, result.Status);
@@ -106,15 +152,68 @@ public class ReportVoteTests
     }
 
     [Fact]
-    public async Task TheOwnerIsToldWhyTheyCannotVote()
+    public async Task TheOwnerCanStillOpenTheirOwnPendingReport()
     {
         using var ctx = new ReportTestContext();
-        var reportId = await AddPublicHazardAsync(ctx);
+        var reportId = await AddPendingHazardAsync(ctx);
 
-        var summary = await ctx.Community.GetVoteSummaryAsync(reportId, new CommunityViewer(Owner, false));
+        var summary = await ctx.Community.GetVoteSummaryAsync(reportId, ReportTestContext.Member(Owner));
 
+        Assert.NotNull(summary);
         Assert.False(summary!.CanVote);
         Assert.Equal("Community feedback is available from other users.", summary.CannotVoteReason);
+    }
+
+    [Fact]
+    public async Task StaffDoNotCastCommunityVotes()
+    {
+        using var ctx = new ReportTestContext();
+        var reportId = await AddPendingHazardAsync(ctx);
+
+        // Moderators set the official status, so letting them vote would pollute
+        // the very signal they use to decide.
+        var result = await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Staff(Moderator), ReportVoteTypes.Confirm);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(CommunityStatus.StaffCannotVote, result.Status);
+        Assert.Equal(0, await ctx.Db.ReportVotes.CountAsync());
+    }
+
+    [Fact]
+    public async Task StaffSeeTheCommunitySignalWithoutBeingAbleToVote()
+    {
+        using var ctx = new ReportTestContext();
+        var reportId = await AddPendingHazardAsync(ctx);
+        await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Confirm);
+
+        var summary = await ctx.Community.GetVoteSummaryAsync(reportId, ReportTestContext.Staff(Moderator));
+
+        Assert.Equal(1, summary!.ConfirmCount);
+        Assert.False(summary.CanVote);
+        Assert.Equal("Moderators decide the official status instead of voting.", summary.CannotVoteReason);
+    }
+
+    [Fact]
+    public async Task AnAnonymousVisitorCannotSeeAPendingReportAtAll()
+    {
+        using var ctx = new ReportTestContext();
+        var reportId = await AddPendingHazardAsync(ctx);
+
+        Assert.Null(await ctx.Community.GetVoteSummaryAsync(reportId, ReportTestContext.Anonymous));
+    }
+
+    [Fact]
+    public async Task AnAnonymousVisitorSeesAVerifiedReportButCannotVote()
+    {
+        using var ctx = new ReportTestContext();
+        var reportId = await AddPendingHazardAsync(ctx);
+        ctx.SetStatus(reportId, ReportStatusCodes.Verified);
+
+        var summary = await ctx.Community.GetVoteSummaryAsync(reportId, ReportTestContext.Anonymous);
+
+        Assert.NotNull(summary);
+        Assert.False(summary!.CanVote);
+        Assert.Equal("Sign in to add your confirmation.", summary.CannotVoteReason);
     }
 
     [Theory]
@@ -124,9 +223,9 @@ public class ReportVoteTests
     public async Task AnUnsupportedVoteTypeIsRejected(string voteType)
     {
         using var ctx = new ReportTestContext();
-        var reportId = await AddPublicHazardAsync(ctx);
+        var reportId = await AddPendingHazardAsync(ctx);
 
-        var result = await ctx.Community.CastVoteAsync(reportId, Voter, voteType);
+        var result = await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), voteType);
 
         Assert.False(result.Succeeded);
         Assert.Equal(CommunityStatus.InvalidVoteType, result.Status);
@@ -137,51 +236,33 @@ public class ReportVoteTests
     public async Task VoteTypeIsAcceptedCaseInsensitivelyButStoredAsTheEnumValue()
     {
         using var ctx = new ReportTestContext();
-        var reportId = await AddPublicHazardAsync(ctx);
+        var reportId = await AddPendingHazardAsync(ctx);
 
-        await ctx.Community.CastVoteAsync(reportId, Voter, "confirm");
+        await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), "confirm");
 
-        var stored = await ctx.Db.ReportVotes.SingleAsync();
-        Assert.Equal(ReportVoteTypes.Confirm, stored.VoteType);
-    }
-
-    [Fact]
-    public async Task AReportTheVoterCannotSeeCannotBeVotedOn()
-    {
-        using var ctx = new ReportTestContext();
-        var result = await ctx.Hazards.CreateAsync(
-            new CreateHazardReportRequest(Owner, "Private pothole", null, Point, 1, HazardRiskLevels.Low, DateTime.Now, null),
-            Array.Empty<StoredImage>());
-
-        // Still PENDING, so it is invisible to everyone except the owner and staff.
-        var vote = await ctx.Community.CastVoteAsync(result.ReportId, Voter, ReportVoteTypes.Confirm);
-
-        Assert.False(vote.Succeeded);
-        Assert.Equal(CommunityStatus.ReportNotFound, vote.Status);
+        Assert.Equal(ReportVoteTypes.Confirm, (await ctx.Db.ReportVotes.SingleAsync()).VoteType);
     }
 
     [Fact]
     public async Task VotesNeverChangeTheReportStatus()
     {
         using var ctx = new ReportTestContext();
-        var reportId = await AddPublicHazardAsync(ctx);
+        var reportId = await AddPendingHazardAsync(ctx);
         var before = ctx.Db.Reports.Single(r => r.ReportId == reportId).StatusId;
 
-        await ctx.Community.CastVoteAsync(reportId, Voter, ReportVoteTypes.Confirm);
-        await ctx.Community.CastVoteAsync(reportId, Moderator, ReportVoteTypes.Confirm);
+        await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Confirm);
 
-        var after = ctx.Db.Reports.Single(r => r.ReportId == reportId).StatusId;
-        Assert.Equal(before, after);
+        Assert.Equal(before, ctx.Db.Reports.Single(r => r.ReportId == reportId).StatusId);
     }
 
     [Fact]
     public async Task ConsensusStaysNeutralUntilEnoughPeopleRespond()
     {
         using var ctx = new ReportTestContext();
-        var reportId = await AddPublicHazardAsync(ctx);
+        var reportId = await AddPendingHazardAsync(ctx);
 
-        await ctx.Community.CastVoteAsync(reportId, Voter, ReportVoteTypes.Confirm);
-        var summary = await ctx.Community.GetVoteSummaryAsync(reportId, new CommunityViewer(Voter, false));
+        await ctx.Community.CastVoteAsync(reportId, ReportTestContext.Member(Voter), ReportVoteTypes.Confirm);
+        var summary = await ctx.Community.GetVoteSummaryAsync(reportId, ReportTestContext.Member(Voter));
 
         Assert.Equal("Not enough signal", summary!.ConsensusLabel);
     }

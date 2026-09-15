@@ -9,6 +9,7 @@ public enum CommunityStatus
     ReportNotFound,
     NotVisible,
     OwnReport,
+    StaffCannotVote,
     InvalidVoteType,
     EmptyComment,
     CommentTooLong,
@@ -36,16 +37,16 @@ public interface IReportCommunityService
     Task<ReportVoteSummaryDto?> GetVoteSummaryAsync(ulong reportId, CommunityViewer viewer, CancellationToken cancellationToken = default);
 
     /// <summary>Creates or switches the caller's single vote. Re-sending the same vote clears it.</summary>
-    Task<CommunityResult<ReportVoteSummaryDto>> CastVoteAsync(ulong reportId, ulong userId, string voteType, CancellationToken cancellationToken = default);
+    Task<CommunityResult<ReportVoteSummaryDto>> CastVoteAsync(ulong reportId, CommunityViewer viewer, string voteType, CancellationToken cancellationToken = default);
 
-    Task<CommunityResult<ReportVoteSummaryDto>> RemoveVoteAsync(ulong reportId, ulong userId, CancellationToken cancellationToken = default);
+    Task<CommunityResult<ReportVoteSummaryDto>> RemoveVoteAsync(ulong reportId, CommunityViewer viewer, CancellationToken cancellationToken = default);
 
     /// <summary>Top-level comments with their replies, newest page first.</summary>
     Task<PagedResult<ReportCommentDto>> GetCommentsAsync(ulong reportId, CommunityViewer viewer, int page, int pageSize, CancellationToken cancellationToken = default);
 
     Task<int> GetCommentCountAsync(ulong reportId, CancellationToken cancellationToken = default);
 
-    Task<CommunityResult<ReportCommentDto>> AddCommentAsync(ulong reportId, ulong userId, string text, ulong? parentCommentId, CancellationToken cancellationToken = default);
+    Task<CommunityResult<ReportCommentDto>> AddCommentAsync(ulong reportId, CommunityViewer viewer, string text, ulong? parentCommentId, CancellationToken cancellationToken = default);
 
     /// <summary>Soft-deletes a comment. Allowed for the comment author, a moderator or an administrator.</summary>
     Task<CommunityResult<bool>> DeleteCommentAsync(ulong commentId, CommunityViewer viewer, CancellationToken cancellationToken = default);

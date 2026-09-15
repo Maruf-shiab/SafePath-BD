@@ -153,6 +153,60 @@ public class ReportModerationTests
     }
 
     [Fact]
+    public async Task TheAccidentAuditRowPointsAtTheAccidentNotTheReport()
+    {
+        using var ctx = new ReportTestContext();
+
+        // Seed an unrelated trusted accident so the generated accident_id cannot
+        // coincidentally equal the report_id.
+        ctx.Db.Locations.Add(new SafePathBD.Web.Models.Entities.Locations
+        {
+            LocationId = 900,
+            Latitude = 23.75m,
+            Longitude = 90.39m,
+            Country = "Bangladesh",
+            PlaceProvider = "OSM"
+        });
+        ctx.Db.Accidents.Add(new SafePathBD.Web.Models.Entities.Accidents
+        {
+            AccidentId = 500,
+            SourceReportId = null,
+            LocationId = 900,
+            AccidentTypeId = 1,
+            SeverityId = 2,
+            AccidentOccurredAt = new DateTime(2026, 1, 1)
+        });
+        ctx.Db.SaveChanges();
+
+        var report = await AddAccidentAsync(ctx);
+        var result = await ctx.Moderation.ApplyDecisionAsync(Decide(report.ReportId, ReportStatusCodes.Verified));
+
+        var accident = await ctx.Db.Accidents.SingleAsync(a => a.SourceReportId == report.ReportId);
+        var audit = await ctx.Db.AdminActions.SingleAsync(a => a.ActionType == AdminActionTypes.AccidentPromoted);
+
+        Assert.NotEqual(report.ReportId, accident.AccidentId);
+        Assert.Equal(AdminActionTypes.AccidentEntity, audit.EntityType);
+
+        // The audit must reference accident_id, and source_report_id must still be the report.
+        Assert.Equal(accident.AccidentId, audit.EntityId);
+        Assert.Equal(report.ReportId, accident.SourceReportId);
+        Assert.Equal(accident.AccidentId, result.CreatedAccidentId);
+    }
+
+    [Fact]
+    public async Task TheStatusAuditRowStillPointsAtTheReport()
+    {
+        using var ctx = new ReportTestContext();
+        var report = await AddHazardAsync(ctx);
+
+        await ctx.Moderation.ApplyDecisionAsync(Decide(report.ReportId, ReportStatusCodes.Verified));
+
+        var audit = await ctx.Db.AdminActions.SingleAsync();
+        Assert.Equal(AdminActionTypes.ReportEntity, audit.EntityType);
+        Assert.Equal(report.ReportId, audit.EntityId);
+    }
+
+    [Fact]
     public async Task AnAccidentWithNoStatedTimeFallsBackToWhenItWasReported()
     {
         using var ctx = new ReportTestContext();
@@ -292,7 +346,7 @@ public class ReportModerationTests
         using var ctx = new ReportTestContext();
         var report = await AddHazardAsync(ctx);
         ctx.SetStatus(report.ReportId, ReportStatusCodes.Verified);
-        await ctx.Community.CastVoteAsync(report.ReportId, 8, ReportVoteTypes.Confirm);
+        await ctx.Community.CastVoteAsync(report.ReportId, ReportTestContext.Member(8), ReportVoteTypes.Confirm);
 
         var queue = await ctx.Moderation.GetQueueAsync(new ModerationQueueQuery(ReportStatusCodes.Verified));
 

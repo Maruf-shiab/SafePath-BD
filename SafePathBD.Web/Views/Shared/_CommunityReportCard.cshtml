@@ -1,0 +1,103 @@
+@model SafePathBD.Web.Models.DTOs.Reports.CommunityReportSummaryDto
+@{
+    var isAccident = Model.ReportType == ReportTypes.Accident;
+
+    var accent = isAccident
+        ? Model.SeverityName switch
+        {
+            "Minor" => "var(--caution)",
+            "Moderate" => "var(--warning)",
+            "Severe" => "var(--danger)",
+            "Fatal" => "var(--report-fatal)",
+            _ => "var(--warning)"
+        }
+        : Model.RiskLevel switch
+        {
+            "LOW" => "var(--safe)",
+            "MODERATE" => "var(--caution)",
+            "HIGH" => "var(--warning)",
+            "CRITICAL" => "var(--danger)",
+            _ => "var(--caution)"
+        };
+
+    var subtype = isAccident
+        ? string.Join(" · ", new[] { Model.AccidentTypeName, Model.SeverityName }.Where(v => !string.IsNullOrWhiteSpace(v)))
+        : string.Join(" · ", new[] { Model.HazardTypeName, Model.RiskLevel }.Where(v => !string.IsNullOrWhiteSpace(v)));
+
+    var place = Model.AreaName ?? Model.City;
+    var age = (DateTime.Now - Model.ReportedAt).TotalHours;
+    var when = age < 1 ? "Just now" : age < 24 ? $"{(int)age} h ago" : Model.ReportedAt.ToString("d MMM yyyy");
+}
+
+<li class="community-card reveal" style="--report-color: @accent">
+    <div class="community-card-main">
+        <span class="report-glyph" aria-hidden="true">
+            @if (isAccident)
+            {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 16.5V13l1.8-4.2A2 2 0 0 1 7.7 7.5h8.6a2 2 0 0 1 1.9 1.3L20 13v3.5" />
+                    <path d="M4 16.5h16M6.8 16.5v2M17.2 16.5v2M7.5 12.7h9" />
+                </svg>
+            }
+            else
+            {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 9.2v4M12 16.4h.01" />
+                    <path d="M10.3 4.4 2.6 17.6a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.4a2 2 0 0 0-3.4 0Z" />
+                </svg>
+            }
+        </span>
+
+        <div class="community-card-body">
+            <a class="community-card-title" asp-controller="Reports" asp-action="Details" asp-route-id="@Model.ReportId">
+                @Model.Title
+            </a>
+            <div class="community-card-meta">
+                <span>@(isAccident ? "Accident" : "Hazard")</span>
+                @if (!string.IsNullOrWhiteSpace(subtype))
+                {
+                    <span>@subtype</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(place))
+                {
+                    <span>@place</span>
+                }
+                <span>@when</span>
+            </div>
+
+            <div class="community-card-signals">
+                <span class="chip chip--caution chip--plain">@Model.StatusName · not yet verified</span>
+                <span class="trust-pip trust-pip--confirm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+                    @Model.ConfirmCount confirm
+                </span>
+                <span class="trust-pip trust-pip--dispute">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8.5v4.5M12 16.5h.01" /></svg>
+                    @Model.DisputeCount dispute
+                </span>
+                @if (Model.CommentCount > 0)
+                {
+                    <span class="t-micro t-muted">@Model.CommentCount comment@(Model.CommentCount == 1 ? "" : "s")</span>
+                }
+                @if (Model.MyVote is not null)
+                {
+                    <span class="chip chip--accent chip--plain">
+                        You @(Model.MyVote == ReportVoteTypes.Confirm ? "confirmed" : "disputed") this
+                    </span>
+                }
+            </div>
+        </div>
+
+        @if (Model.ThumbnailImageId is not null)
+        {
+            <img class="community-card-thumb"
+                 src="@Url.Action("Image", "Reports", new { id = Model.ThumbnailImageId })"
+                 alt="" loading="lazy" />
+        }
+    </div>
+
+    <a class="btn btn-secondary btn-sm community-card-action"
+       asp-controller="Reports" asp-action="Details" asp-route-id="@Model.ReportId">
+        Review report
+    </a>
+</li>

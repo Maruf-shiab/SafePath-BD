@@ -153,9 +153,8 @@ public sealed class ReportService : IReportService
         }
 
         var isOwner = viewerUserId is not null && report.UserId == viewerUserId;
-        var isPubliclyVisible = report.IsPublic == true && report.StatusCode == ReportStatusCodes.Verified;
 
-        if (!isOwner && !viewerIsStaff && !isPubliclyVisible)
+        if (!ReportVisibility.CanView(report.StatusCode, report.IsPublic == true, isOwner, viewerIsStaff, viewerUserId is > 0))
         {
             return null;
         }
@@ -259,9 +258,10 @@ public sealed class ReportService : IReportService
         }
 
         var isOwner = viewerUserId is not null && image.UserId == viewerUserId;
-        var isPubliclyVisible = image.IsPublic == true && image.StatusCode == ReportStatusCodes.Verified;
 
-        return isOwner || viewerIsStaff || isPubliclyVisible
+        // Evidence follows the report: community reviewers can see photos on the
+        // reports they are being asked to confirm, anonymous visitors cannot.
+        return ReportVisibility.CanView(image.StatusCode, image.IsPublic == true, isOwner, viewerIsStaff, viewerUserId is > 0)
             ? new ReportImageFileDto(image.ImageUrl)
             : null;
     }
@@ -282,6 +282,76 @@ public sealed class ReportService : IReportService
                 includeNotes ? v.AdminComment : null,
                 v.VerifiedAt))
             .ToListAsync(cancellationToken);
+
+    // ------------------------------------------------------- community review
+
+    /// <summary>Public reports still waiting on an official decision.</summary>
+    private IQueryable<Reports> CommunityReviewable() =>
+        _db.Reports.AsNoTracking()
+            .Where(r => r.IsPublic == true
+                && (r.Status.StatusCode == ReportStatusCodes.Pending
+                    || r.Status.StatusCode == ReportStatusCodes.UnderReview
+                    || r.Status.StatusCode == ReportStatusCodes.NeedsInfo));
+
+    public async Task<PagedResult<CommunityReportSummaryDto>> GetCommunityReviewAsync(
+        CommunityReviewQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        var page = Math.Max(1, query.Page);
+        var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
+
+        var source = CommunityReviewable();
+
+        // A member cannot vote on their own report, so those are hidden by default.
+        if (query.ExcludeOwn)
+        {
+            source = source.Where(r => r.UserId != query.ViewerUserId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.ReportType))
+        {
+            source = source.Where(r => r.ReportType == query.ReportType);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.StatusCode))
+        {
+            source = source.Where(r => r.Status.StatusCode == query.StatusCode);
+        }
+
+        var total = await source.CountAsync(cancellationToken);
+
+        var items = await source
+            .OrderByDescending(r => r.ReportedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(r => new CommunityReportSummaryDto(
+                r.ReportId,
+                r.ReportType,
+                r.Title,
+                r.Status.StatusCode,
+                r.Status.StatusName,
+                r.ReportedAt,
+                (double)r.Location.Latitude,
+                (double)r.Location.Longitude,
+                r.Location.AreaName,
+                r.Location.City,
+                r.AccidentReports != null ? r.AccidentReports.Severity.SeverityName : null,
+                r.AccidentReports != null ? r.AccidentReports.AccidentType.TypeName : null,
+                r.HazardReports != null ? r.HazardReports.HazardType.HazardName : null,
+                r.HazardReports != null ? r.HazardReports.RiskLevel : null,
+                r.ReportImages.OrderBy(i => i.UploadedAt).Select(i => (ulong?)i.ImageId).FirstOrDefault(),
+                r.ReportImages.Count,
+                r.ReportVotes.Count(v => v.VoteType == ReportVoteTypes.Confirm),
+                r.ReportVotes.Count(v => v.VoteType == ReportVoteTypes.Dispute),
+                r.ReportComments.Count(c => !c.IsDeleted),
+                r.ReportVotes.Where(v => v.UserId == query.ViewerUserId).Select(v => v.VoteType).FirstOrDefault()))
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<CommunityReportSummaryDto>(items, page, pageSize, total);
+    }
+
+    public Task<int> GetCommunityReviewCountAsync(ulong viewerUserId, CancellationToken cancellationToken = default) =>
+        CommunityReviewable().CountAsync(r => r.UserId != viewerUserId, cancellationToken);
 
     private static System.Linq.Expressions.Expression<Func<Reports, ReportSummaryDto>> SummaryProjection =>
         r => new ReportSummaryDto(

@@ -5,6 +5,7 @@ using SafePathBD.Web.Common;
 using SafePathBD.Web.Data;
 using SafePathBD.Web.Models.Entities;
 using SafePathBD.Web.Services.Implementations;
+using SafePathBD.Web.Services.Interfaces;
 
 namespace SafePathBD.Tests;
 
@@ -77,6 +78,14 @@ internal sealed class ReportTestContext : IDisposable
         report.IsPublic = isPublic;
         Db.SaveChanges();
     }
+
+    /// <summary>An ordinary signed-in member.</summary>
+    public static CommunityViewer Member(ulong userId) => new(userId, false);
+
+    /// <summary>A signed-in moderator or administrator.</summary>
+    public static CommunityViewer Staff(ulong userId) => new(userId, true);
+
+    public static CommunityViewer Anonymous => new(null, false);
 
     public void Dispose() => Db.Dispose();
 }

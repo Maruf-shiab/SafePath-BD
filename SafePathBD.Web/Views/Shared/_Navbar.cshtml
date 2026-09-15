@@ -3,11 +3,14 @@
     var routeData = ViewContext.RouteData.Values;
     var area = routeData["area"] as string;
     var controller = routeData["controller"] as string;
+    var action = routeData["action"] as string;
     var isAuthenticated = User.Identity?.IsAuthenticated == true;
 
-    string NavState(string targetController, string? targetArea = null) =>
+    // targetAction is only supplied where one controller serves several nav entries.
+    string NavState(string targetController, string? targetArea = null, string? targetAction = null) =>
         string.Equals(controller, targetController, StringComparison.OrdinalIgnoreCase)
         && string.Equals(area ?? string.Empty, targetArea ?? string.Empty, StringComparison.OrdinalIgnoreCase)
+        && (targetAction is null || string.Equals(action, targetAction, StringComparison.OrdinalIgnoreCase))
             ? "nav-link is-active"
             : "nav-link";
 }
@@ -38,7 +41,8 @@
             {
                 <a class="@NavState("Dashboard")" asp-area="" asp-controller="Dashboard" asp-action="Index">Dashboard</a>
                 <a class="@NavState("Map")" asp-area="" asp-controller="Map" asp-action="Index">Map</a>
-                <a class="@NavState("Reports")" asp-area="" asp-controller="Reports" asp-action="My">My reports</a>
+                <a class="@NavState("Reports", null, "My")" asp-area="" asp-controller="Reports" asp-action="My">My reports</a>
+                <a class="@NavState("Reports", null, "Community")" asp-area="" asp-controller="Reports" asp-action="Community">Help verify</a>
                 @await Component.InvokeAsync("ModerationNav")
                 @if (User.IsInRole(RoleNames.Admin))
                 {

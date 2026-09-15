@@ -87,6 +87,26 @@
             }
         </div>
 
+        @if (ReportVisibility.IsAwaitingVerification(report.StatusCode))
+        {
+            <div class="notice notice--caution" style="margin-bottom: var(--space-5);">
+                <span class="notice-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 9v4M12 17h.01" />
+                        <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+                    </svg>
+                </span>
+                <div>
+                    <strong class="t-body">Pending verification</strong>
+                    <p class="t-meta">
+                        Community-submitted information. A SafePath moderator has not verified this
+                        report, so it does not appear on the public map and should not be treated as
+                        confirmed road safety information.
+                    </p>
+                </div>
+            </div>
+        }
+
         <div class="detail-grid">
             <div class="stack-5">
                 <div class="panel">

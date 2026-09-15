@@ -208,10 +208,34 @@ public class ReportsController : Controller
         });
     }
 
+    /// <summary>
+    /// Public reports still awaiting an official decision, so signed-in members can
+    /// confirm or dispute them before a moderator rules. Authenticated only by design.
+    /// </summary>
+    [HttpGet("Reports/Community")]
+    [Authorize]
+    public async Task<IActionResult> Community(
+        string? type,
+        string? status,
+        int page = 1,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = User.GetUserId();
+
+        var reports = await _reportService.GetCommunityReviewAsync(
+            new CommunityReviewQuery(userId, NormalizeType(type), NormalizeStatus(status), true, page), cancellationToken);
+
+        return View(new CommunityReviewViewModel
+        {
+            Reports = reports,
+            ReportType = NormalizeType(type),
+            StatusCode = NormalizeStatus(status)
+        });
+    }
+
     [HttpGet("Reports/Details/{id:long}")]
     [AllowAnonymous]
-    public async Task<IActionResult> Details(long id, CancellationToken cancellationToken)
-    {
+    public async Task<IActionResult> Details(long id, CancellationToken cancellationToken)    {
         var viewerId = User.Identity?.IsAuthenticated == true ? User.GetUserId() : (ulong?)null;
 
         var report = await _reportService.GetDetailsAsync((ulong)id, viewerId, IsStaff(), cancellationToken);
@@ -274,6 +298,13 @@ public class ReportsController : Controller
         ReportTypes.Hazard => ReportTypes.Hazard,
         _ => null
     };
+
+    /// <summary>Only the community-reviewable statuses are accepted from the query string.</summary>
+    private static string? NormalizeStatus(string? status)
+    {
+        var upper = status?.Trim().ToUpperInvariant();
+        return upper is not null && ReportVisibility.CommunityReviewStatuses.Contains(upper) ? upper : null;
+    }
 
     private static List<IFormFile> NormalizeFiles(IEnumerable<IFormFile>? files) =>
         files?.Where(f => f is { Length: > 0 }).ToList() ?? new List<IFormFile>();

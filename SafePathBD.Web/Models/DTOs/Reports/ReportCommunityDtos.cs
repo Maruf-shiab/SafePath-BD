@@ -46,3 +46,29 @@ public sealed record ReportVerificationEntryDto(
     string? ReviewerName,
     string? Note,
     DateTime VerifiedAt);
+
+/// <summary>
+/// A card on the community review page. Carries no reporter identity — other members
+/// only ever see "Community reporter".
+/// </summary>
+public sealed record CommunityReportSummaryDto(
+    ulong ReportId,
+    string ReportType,
+    string Title,
+    string StatusCode,
+    string StatusName,
+    DateTime ReportedAt,
+    double Latitude,
+    double Longitude,
+    string? AreaName,
+    string? City,
+    string? SeverityName,
+    string? AccidentTypeName,
+    string? HazardTypeName,
+    string? RiskLevel,
+    ulong? ThumbnailImageId,
+    int ImageCount,
+    int ConfirmCount,
+    int DisputeCount,
+    int CommentCount,
+    string? MyVote);

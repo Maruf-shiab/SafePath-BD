@@ -114,13 +114,26 @@ public class ReportAccessTests
     }
 
     [Fact]
-    public async Task Details_AreHiddenFromOtherUsersWhilePending()
+    public async Task Details_AreHiddenFromAnonymousVisitorsWhilePending()
     {
         using var ctx = new ReportTestContext();
         var id = await AddHazardAsync(ctx, Owner);
 
+        // Signed-in members may review a public pending report, anonymous visitors may not.
+        Assert.Null(await ctx.Reports.GetDetailsAsync(id, null, viewerIsStaff: false));
+        Assert.NotNull(await ctx.Reports.GetDetailsAsync(id, Stranger, viewerIsStaff: false));
+    }
+
+    [Fact]
+    public async Task Details_AreHiddenFromOtherUsersWhenThePendingReportIsPrivate()
+    {
+        using var ctx = new ReportTestContext();
+        var id = await AddHazardAsync(ctx, Owner);
+        ctx.SetStatus(id, ReportStatusCodes.Pending, isPublic: false);
+
         Assert.Null(await ctx.Reports.GetDetailsAsync(id, Stranger, viewerIsStaff: false));
         Assert.Null(await ctx.Reports.GetDetailsAsync(id, null, viewerIsStaff: false));
+        Assert.NotNull(await ctx.Reports.GetDetailsAsync(id, Owner, viewerIsStaff: false));
     }
 
     [Fact]
@@ -204,14 +217,27 @@ public class ReportAccessTests
     }
 
     [Fact]
-    public async Task Images_AreHiddenFromOthersWhilePending()
+    public async Task Images_AreHiddenFromAnonymousVisitorsWhilePending()
     {
         using var ctx = new ReportTestContext();
         await AddHazardWithImageAsync(ctx, Owner);
         var imageId = ctx.Db.ReportImages.Single().ImageId;
 
-        Assert.Null(await ctx.Reports.GetImageForViewerAsync(imageId, Stranger, viewerIsStaff: false));
+        // Evidence follows the report: a member asked to confirm it needs to see the photo.
         Assert.Null(await ctx.Reports.GetImageForViewerAsync(imageId, null, viewerIsStaff: false));
+        Assert.NotNull(await ctx.Reports.GetImageForViewerAsync(imageId, Stranger, viewerIsStaff: false));
+    }
+
+    [Fact]
+    public async Task Images_StayHiddenWhenThePendingReportIsPrivate()
+    {
+        using var ctx = new ReportTestContext();
+        var reportId = await AddHazardWithImageAsync(ctx, Owner);
+        ctx.SetStatus(reportId, ReportStatusCodes.Pending, isPublic: false);
+        var imageId = ctx.Db.ReportImages.Single().ImageId;
+
+        Assert.Null(await ctx.Reports.GetImageForViewerAsync(imageId, Stranger, viewerIsStaff: false));
+        Assert.NotNull(await ctx.Reports.GetImageForViewerAsync(imageId, Owner, viewerIsStaff: false));
     }
 
     [Fact]

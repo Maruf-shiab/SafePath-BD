@@ -29,10 +29,10 @@ public sealed class ReportCommunityService : IReportCommunityService
     public async Task<ReportVoteSummaryDto?> GetVoteSummaryAsync(ulong reportId, CommunityViewer viewer, CancellationToken cancellationToken = default)
     {
         var report = await LoadVisibleReportAsync(reportId, viewer, cancellationToken);
-        return report is null ? null : await BuildSummaryAsync(report, viewer.UserId, cancellationToken);
+        return report is null ? null : await BuildSummaryAsync(report, viewer, cancellationToken);
     }
 
-    public async Task<CommunityResult<ReportVoteSummaryDto>> CastVoteAsync(ulong reportId, ulong userId, string voteType, CancellationToken cancellationToken = default)
+    public async Task<CommunityResult<ReportVoteSummaryDto>> CastVoteAsync(ulong reportId, CommunityViewer viewer, string voteType, CancellationToken cancellationToken = default)
     {
         var normalized = ReportVoteTypes.Normalize(voteType);
         if (normalized is null)
@@ -41,7 +41,6 @@ public sealed class ReportCommunityService : IReportCommunityService
                 CommunityStatus.InvalidVoteType, "A vote must be either a confirmation or a dispute.");
         }
 
-        var viewer = new CommunityViewer(userId, false);
         var report = await LoadVisibleReportAsync(reportId, viewer, cancellationToken);
         if (report is null)
         {
@@ -49,10 +48,18 @@ public sealed class ReportCommunityService : IReportCommunityService
                 CommunityStatus.ReportNotFound, "That report is not available.");
         }
 
+        var userId = viewer.UserId!.Value;
+
         if (report.UserId == userId)
         {
             return CommunityResult<ReportVoteSummaryDto>.Fail(
                 CommunityStatus.OwnReport, "You cannot vote on your own report.");
+        }
+
+        if (viewer.IsStaff)
+        {
+            return CommunityResult<ReportVoteSummaryDto>.Fail(
+                CommunityStatus.StaffCannotVote, "Moderators decide the official status instead of voting.");
         }
 
         var existing = await _db.ReportVotes
@@ -81,12 +88,11 @@ public sealed class ReportCommunityService : IReportCommunityService
         }
 
         await _db.SaveChangesAsync(cancellationToken);
-        return CommunityResult<ReportVoteSummaryDto>.Ok(await BuildSummaryAsync(report, userId, cancellationToken));
+        return CommunityResult<ReportVoteSummaryDto>.Ok(await BuildSummaryAsync(report, viewer, cancellationToken));
     }
 
-    public async Task<CommunityResult<ReportVoteSummaryDto>> RemoveVoteAsync(ulong reportId, ulong userId, CancellationToken cancellationToken = default)
+    public async Task<CommunityResult<ReportVoteSummaryDto>> RemoveVoteAsync(ulong reportId, CommunityViewer viewer, CancellationToken cancellationToken = default)
     {
-        var viewer = new CommunityViewer(userId, false);
         var report = await LoadVisibleReportAsync(reportId, viewer, cancellationToken);
         if (report is null)
         {
@@ -95,7 +101,7 @@ public sealed class ReportCommunityService : IReportCommunityService
         }
 
         var existing = await _db.ReportVotes
-            .SingleOrDefaultAsync(v => v.ReportId == reportId && v.UserId == userId, cancellationToken);
+            .SingleOrDefaultAsync(v => v.ReportId == reportId && v.UserId == viewer.UserId, cancellationToken);
 
         if (existing is not null)
         {
@@ -103,10 +109,10 @@ public sealed class ReportCommunityService : IReportCommunityService
             await _db.SaveChangesAsync(cancellationToken);
         }
 
-        return CommunityResult<ReportVoteSummaryDto>.Ok(await BuildSummaryAsync(report, userId, cancellationToken));
+        return CommunityResult<ReportVoteSummaryDto>.Ok(await BuildSummaryAsync(report, viewer, cancellationToken));
     }
 
-    private async Task<ReportVoteSummaryDto> BuildSummaryAsync(Reports report, ulong? userId, CancellationToken cancellationToken)
+    private async Task<ReportVoteSummaryDto> BuildSummaryAsync(Reports report, CommunityViewer viewer, CancellationToken cancellationToken)
     {
         var tally = await _db.ReportVotes.AsNoTracking()
             .Where(v => v.ReportId == report.ReportId)
@@ -118,31 +124,22 @@ public sealed class ReportCommunityService : IReportCommunityService
         var dispute = tally.FirstOrDefault(t => t.VoteType == ReportVoteTypes.Dispute)?.Count ?? 0;
 
         string? mine = null;
-        if (userId is > 0)
+        if (viewer.IsAuthenticated)
         {
             mine = await _db.ReportVotes.AsNoTracking()
-                .Where(v => v.ReportId == report.ReportId && v.UserId == userId)
+                .Where(v => v.ReportId == report.ReportId && v.UserId == viewer.UserId)
                 .Select(v => v.VoteType)
                 .SingleOrDefaultAsync(cancellationToken);
         }
 
-        var (canVote, reason) = ResolveVoteEligibility(report, userId);
+        var isOwner = viewer.IsAuthenticated && report.UserId == viewer.UserId;
+
+        var canVote = ReportVisibility.CanVote(
+            report.Status.StatusCode, report.IsPublic == true, isOwner, viewer.IsStaff, viewer.IsAuthenticated);
+
+        var reason = canVote ? null : ReportVisibility.VoteBlockedReason(isOwner, viewer.IsStaff, viewer.IsAuthenticated);
+
         return new ReportVoteSummaryDto(report.ReportId, confirm, dispute, mine, canVote, reason);
-    }
-
-    private static (bool CanVote, string? Reason) ResolveVoteEligibility(Reports report, ulong? userId)
-    {
-        if (userId is not > 0)
-        {
-            return (false, "Sign in to add your confirmation.");
-        }
-
-        if (report.UserId == userId)
-        {
-            return (false, "Community feedback is available from other users.");
-        }
-
-        return (true, null);
     }
 
     // ---------------------------------------------------------------- comments
@@ -216,7 +213,7 @@ public sealed class ReportCommunityService : IReportCommunityService
         _db.ReportComments.AsNoTracking().CountAsync(c => c.ReportId == reportId && !c.IsDeleted, cancellationToken);
 
     public async Task<CommunityResult<ReportCommentDto>> AddCommentAsync(
-        ulong reportId, ulong userId, string text, ulong? parentCommentId, CancellationToken cancellationToken = default)
+        ulong reportId, CommunityViewer viewer, string text, ulong? parentCommentId, CancellationToken cancellationToken = default)
     {
         var trimmed = (text ?? string.Empty).Trim();
         if (trimmed.Length == 0)
@@ -230,12 +227,13 @@ public sealed class ReportCommunityService : IReportCommunityService
                 CommunityStatus.CommentTooLong, $"Comments are limited to {MaxCommentLength} characters.");
         }
 
-        var viewer = new CommunityViewer(userId, false);
         var report = await LoadVisibleReportAsync(reportId, viewer, cancellationToken);
         if (report is null)
         {
             return CommunityResult<ReportCommentDto>.Fail(CommunityStatus.ReportNotFound, "That report is not available.");
         }
+
+        var userId = viewer.UserId!.Value;
 
         // Replies may only attach to a top-level comment on this same report, so nesting stays one level deep.
         if (parentCommentId is not null)
@@ -352,8 +350,8 @@ public sealed class ReportCommunityService : IReportCommunityService
     }
 
     /// <summary>
-    /// Applies exactly the same visibility rule as report details: owner, staff,
-    /// or a report that is both public and verified.
+    /// Applies the shared visibility policy: the owner, staff, anyone when the report is
+    /// public and verified, and any signed-in member while it is still community-reviewable.
     /// </summary>
     private async Task<Reports?> LoadVisibleReportAsync(ulong reportId, CommunityViewer viewer, CancellationToken cancellationToken)
     {
@@ -366,9 +364,11 @@ public sealed class ReportCommunityService : IReportCommunityService
             return null;
         }
 
-        var isOwner = viewer.UserId is > 0 && report.UserId == viewer.UserId;
-        var isPubliclyVisible = report.IsPublic == true && report.Status.StatusCode == ReportStatusCodes.Verified;
+        var isOwner = viewer.IsAuthenticated && report.UserId == viewer.UserId;
 
-        return isOwner || viewer.IsStaff || isPubliclyVisible ? report : null;
+        return ReportVisibility.CanView(
+            report.Status.StatusCode, report.IsPublic == true, isOwner, viewer.IsStaff, viewer.IsAuthenticated)
+            ? report
+            : null;
     }
 }

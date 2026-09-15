@@ -11,6 +11,18 @@ public sealed record MyReportsQuery(
     int Page = 1,
     int PageSize = 20);
 
+/// <summary>
+/// Reports a signed-in member may help validate. <paramref name="ViewerUserId"/> is used to
+/// exclude the member's own reports, which they are not allowed to vote on.
+/// </summary>
+public sealed record CommunityReviewQuery(
+    ulong ViewerUserId,
+    string? ReportType = null,
+    string? StatusCode = null,
+    bool ExcludeOwn = true,
+    int Page = 1,
+    int PageSize = 20);
+
 public sealed record MapBounds(double MinLat, double MinLng, double MaxLat, double MaxLng)
 {
     public bool IsValid =>
@@ -50,4 +62,13 @@ public interface IReportService
     /// are only included when <paramref name="includeNotes"/> is true (owner or staff).
     /// </summary>
     Task<IReadOnlyList<ReportVerificationEntryDto>> GetVerificationHistoryAsync(ulong reportId, bool includeNotes, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Public reports still awaiting an official decision, for the signed-in community
+    /// review page. Filtering is done in the database, never in the view.
+    /// </summary>
+    Task<PagedResult<CommunityReportSummaryDto>> GetCommunityReviewAsync(CommunityReviewQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>How many reports currently need community input, excluding the member's own.</summary>
+    Task<int> GetCommunityReviewCountAsync(ulong viewerUserId, CancellationToken cancellationToken = default);
 }

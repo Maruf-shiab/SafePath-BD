@@ -93,7 +93,7 @@ public class PublicVisibilityTests
         var report = await AddHazardAsync(ctx);
         await ctx.Moderation.ApplyDecisionAsync(
             new ModerationDecision(report.ReportId, Moderator, ReportStatusCodes.Verified, null, null));
-        await ctx.Community.CastVoteAsync(report.ReportId, 8, ReportVoteTypes.Confirm);
+        await ctx.Community.CastVoteAsync(report.ReportId, ReportTestContext.Member(8), ReportVoteTypes.Confirm);
 
         var marker = (await ctx.Reports.GetPublicMapReportsAsync(Dhaka, null, 100)).Single();
 
