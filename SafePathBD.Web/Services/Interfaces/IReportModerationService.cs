@@ -24,8 +24,9 @@ public interface IReportModerationService
     Task<ModerationReportDto?> GetForReviewAsync(ulong reportId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Applies a status change atomically: verification history, report status, audit entry
-    /// and — for a verified accident — promotion into the trusted <c>accidents</c> table.
+    /// Applies a status change atomically: verification history, report status, audit entry,
+    /// reporter notification when applicable, and — for a verified accident — promotion into
+    /// the trusted <c>accidents</c> table.
     /// </summary>
     Task<ModerationResult> ApplyDecisionAsync(ModerationDecision decision, CancellationToken cancellationToken = default);
 

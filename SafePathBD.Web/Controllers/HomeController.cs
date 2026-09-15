@@ -23,6 +23,13 @@ public class HomeController : Controller
         return View();
     }
 
+    [HttpGet]
+    public new IActionResult StatusCode(int code)
+    {
+        Response.StatusCode = code;
+        return View(code);
+    }
+
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
     {

@@ -1,0 +1,143 @@
+@model SafePathBD.Web.Models.ViewModels.Notifications.NotificationPageViewModel
+@using SafePathBD.Web.Models.DTOs.Notifications
+@{
+    ViewData["Title"] = "Notifications";
+    var notificationPage = Model.Notifications;
+    var message = TempData["NotificationMessage"] as string;
+    var currentReturnUrl = Url.Action("Index", "Notifications", new { filter = Model.Filter }) ?? "/Notifications";
+
+    string FilterClass(string value) => Model.Filter == value ? "notification-filter is-active" : "notification-filter";
+    string TypeClass(string code) => code switch
+    {
+        NotificationTypeCodes.ReportVerified => "is-success",
+        NotificationTypeCodes.ReportRejected => "is-danger",
+        NotificationTypeCodes.ReportResolved => "is-success",
+        NotificationTypeCodes.AccidentAlert => "is-danger",
+        NotificationTypeCodes.HazardAlert => "is-warning",
+        _ => "is-info"
+    };
+}
+
+<partial name="_PageHeader" model="@(new PageHeaderViewModel
+{
+    Eyebrow = "Updates",
+    Title = "Notifications",
+    Description = Model.UnreadCount == 0
+        ? "You're all caught up. New report decisions will appear here."
+        : $"You have {Model.UnreadCount} unread notification{(Model.UnreadCount == 1 ? "" : "s")}.",
+    Chips = new[] { new PageHeaderChip($"{Model.UnreadCount} unread", Model.UnreadCount > 0 ? "chip--accent" : "chip--muted") }
+})" />
+
+<section class="section section--tight">
+    <div class="shell notification-page">
+        <div class="notification-toolbar">
+            <nav class="notification-filters" aria-label="Notification filters">
+                <a class="@FilterClass(NotificationReadFilters.All)" asp-action="Index" asp-route-filter="all">All</a>
+                <a class="@FilterClass(NotificationReadFilters.Unread)" asp-action="Index" asp-route-filter="unread">Unread</a>
+                <a class="@FilterClass(NotificationReadFilters.Read)" asp-action="Index" asp-route-filter="read">Read</a>
+            </nav>
+
+            @if (Model.UnreadCount > 0)
+            {
+                <form asp-action="ReadAllFromPage" method="post">
+                    <input type="hidden" name="filter" value="@Model.Filter" />
+                    <button class="btn btn-secondary" type="submit">Mark all as read</button>
+                </form>
+            }
+        </div>
+
+        @if (notificationPage.Items.Count == 0)
+        {
+            <div class="empty-state notification-empty">
+                <span class="card-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></svg>
+                </span>
+                <h2 class="t-h3">You're all caught up</h2>
+                <p class="t-body">There are no @Model.Filter notifications to show right now.</p>
+                <a class="btn btn-primary" asp-controller="Dashboard" asp-action="Index">Back to dashboard</a>
+            </div>
+        }
+        else
+        {
+            <div class="notification-list-page">
+                @foreach (NotificationItemDto item in notificationPage.Items)
+                {
+                    <article class="notification-row @(item.IsRead ? "is-read" : "is-unread")" data-notification-row data-notification-id="@item.NotificationId">
+                        <span class="notification-type-icon @TypeClass(item.TypeCode)" aria-hidden="true">
+                            @if (item.TypeCode == NotificationTypeCodes.ReportVerified || item.TypeCode == NotificationTypeCodes.ReportResolved)
+                            {
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                            }
+                            else if (item.TypeCode == NotificationTypeCodes.ReportRejected)
+                            {
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                            }
+                            else
+                            {
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v5M12 17h.01" /><circle cx="12" cy="12" r="9" /></svg>
+                            }
+                        </span>
+
+                        <div class="notification-row-body">
+                            <div class="notification-row-heading">
+                                <strong>@item.Title</strong>
+                                <time datetime="@item.CreatedAt.ToString("O")">@item.CreatedAt.ToString("d MMM yyyy, HH:mm")</time>
+                            </div>
+                            <p>@item.Message</p>
+                            <span class="t-micro t-muted">@item.TypeName</span>
+                        </div>
+
+                        <div class="notification-row-actions">
+                            @if (!item.IsRead)
+                            {
+                                <span class="notification-unread-dot" aria-label="Unread"></span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.ActionUrl))
+                            {
+                                <form asp-action="ReadFromPage" asp-route-id="@item.NotificationId" method="post">
+                                    <input type="hidden" name="returnUrl" value="@item.ActionUrl" />
+                                    <button class="btn btn-ghost" type="submit">View report</button>
+                                </form>
+                            }
+                            else if (!item.IsRead)
+                            {
+                                <form asp-action="ReadFromPage" asp-route-id="@item.NotificationId" method="post">
+                                    <input type="hidden" name="returnUrl" value="@currentReturnUrl" />
+                                    <button class="btn btn-ghost" type="submit">Mark read</button>
+                                </form>
+                            }
+                        </div>
+                    </article>
+                }
+            </div>
+
+            @if (notificationPage.TotalPages > 1)
+            {
+                <nav class="pager" aria-label="Notification pages">
+                    @if (notificationPage.HasPrevious)
+                    {
+                        <a class="btn btn-secondary" asp-action="Index" asp-route-filter="@Model.Filter" asp-route-page="@(notificationPage.Page - 1)">Previous</a>
+                    }
+                    <span class="t-meta">Page @notificationPage.Page of @notificationPage.TotalPages</span>
+                    @if (notificationPage.HasNext)
+                    {
+                        <a class="btn btn-secondary" asp-action="Index" asp-route-filter="@Model.Filter" asp-route-page="@(notificationPage.Page + 1)">Next</a>
+                    }
+                </nav>
+            }
+        }
+    </div>
+</section>
+
+@section Scripts {
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                if (window.SafePathToast) {
+                    window.SafePathToast.success(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(message)));
+                }
+            });
+        </script>
+    }
+}

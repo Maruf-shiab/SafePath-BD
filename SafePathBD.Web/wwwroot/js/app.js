@@ -15,9 +15,25 @@
         window.addEventListener("scroll", applyStuckState, { passive: true });
 
         if (toggle) {
+            const closeMenu = function () {
+                navbar.classList.remove("is-open");
+                toggle.setAttribute("aria-expanded", "false");
+            };
+
             toggle.addEventListener("click", function () {
                 const open = navbar.classList.toggle("is-open");
                 toggle.setAttribute("aria-expanded", String(open));
+            });
+
+            navbar.querySelectorAll(".nav-links a, .nav-actions a").forEach(function (link) {
+                link.addEventListener("click", closeMenu);
+            });
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape" && navbar.classList.contains("is-open")) {
+                    closeMenu();
+                    toggle.focus();
+                }
             });
         }
     }

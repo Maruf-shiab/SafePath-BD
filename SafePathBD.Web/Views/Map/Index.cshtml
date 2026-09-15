@@ -110,7 +110,7 @@
     </div>
 
     @* Emergency type filters *@
-    <div class="map-layer map-filters" role="group" aria-label="Emergency service type">
+    <div class="map-layer map-filters" id="emergency" role="group" aria-label="Emergency service type">
         <button class="filter-chip is-active" type="button" data-filter="all" aria-pressed="true"
                 style="--chip-dot: var(--accent-primary)">All</button>
         @foreach (var type in Model.ServiceTypes)

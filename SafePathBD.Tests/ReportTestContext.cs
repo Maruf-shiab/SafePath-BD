@@ -40,6 +40,11 @@ internal sealed class ReportTestContext : IDisposable
         Db.AccidentTypes.Add(new AccidentTypes { AccidentTypeId = 1, TypeName = "Vehicle Collision", IsActive = true, DefaultRiskWeight = 2m });
         Db.AccidentSeverities.Add(new AccidentSeverities { SeverityId = 2, SeverityName = "Moderate", RiskWeight = 2m });
         Db.HazardTypes.Add(new HazardTypes { HazardTypeId = 1, HazardName = "Pothole", IsActive = true, DefaultRiskWeight = 1m });
+        Db.NotificationTypes.AddRange(
+            new NotificationTypes { NotificationTypeId = 1, TypeCode = NotificationTypeCodes.ReportVerified, TypeName = "Report Verified" },
+            new NotificationTypes { NotificationTypeId = 2, TypeCode = NotificationTypeCodes.ReportRejected, TypeName = "Report Rejected" },
+            new NotificationTypes { NotificationTypeId = 3, TypeCode = NotificationTypeCodes.ReportResolved, TypeName = "Report Resolved" },
+            new NotificationTypes { NotificationTypeId = 4, TypeCode = NotificationTypeCodes.System, TypeName = "System Notification" });
         Db.Users.Add(new Users { UserId = 7, FullName = "Reporter One", Email = "reporter@example.com", PasswordHash = "x", IsActive = true });
         Db.Users.Add(new Users { UserId = 8, FullName = "Reporter Two", Email = "other@example.com", PasswordHash = "x", IsActive = true });
         Db.Users.Add(new Users { UserId = 9, FullName = "Mod Erator", Email = "mod@example.com", PasswordHash = "x", IsActive = true });
@@ -53,7 +58,9 @@ internal sealed class ReportTestContext : IDisposable
         Reports = new ReportService(Db);
         Locations = locationService;
         Community = new ReportCommunityService(Db);
-        Moderation = new ReportModerationService(Db, Reports, NullLogger<ReportModerationService>.Instance);
+        Notifications = new NotificationService(Db, NullLogger<NotificationService>.Instance);
+        Moderation = new ReportModerationService(Db, Reports, Notifications, NullLogger<ReportModerationService>.Instance);
+        Dashboards = new DashboardService(Db, Notifications, Moderation);
     }
 
     public SafePathDbContext Db { get; }
@@ -68,7 +75,11 @@ internal sealed class ReportTestContext : IDisposable
 
     public ReportCommunityService Community { get; }
 
+    public NotificationService Notifications { get; }
+
     public ReportModerationService Moderation { get; }
+
+    public DashboardService Dashboards { get; }
 
     /// <summary>Marks an existing report verified so public-visibility rules can be exercised.</summary>
     public void SetStatus(ulong reportId, string statusCode, bool isPublic = true)

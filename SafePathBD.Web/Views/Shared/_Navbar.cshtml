@@ -43,7 +43,12 @@
                 <a class="@NavState("Map")" asp-area="" asp-controller="Map" asp-action="Index">Map</a>
                 <a class="@NavState("Reports", null, "My")" asp-area="" asp-controller="Reports" asp-action="My">My reports</a>
                 <a class="@NavState("Reports", null, "Community")" asp-area="" asp-controller="Reports" asp-action="Community">Help verify</a>
+                <a class="@NavState("Notifications")" asp-area="" asp-controller="Notifications" asp-action="Index">Notifications</a>
                 @await Component.InvokeAsync("ModerationNav")
+                @if (User.IsInRole(RoleNames.Moderator) && !User.IsInRole(RoleNames.Admin))
+                {
+                    <a class="@NavState("ModeratorDashboard", "Admin")" asp-area="Admin" asp-controller="ModeratorDashboard" asp-action="Index">Operations</a>
+                }
                 @if (User.IsInRole(RoleNames.Admin))
                 {
                     <a class="@NavState("Dashboard", "Admin")" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">Admin</a>
@@ -61,6 +66,7 @@
         <div class="nav-actions">
             @if (isAuthenticated)
             {
+                @await Component.InvokeAsync("NotificationBell")
                 <a class="@NavState("Profile")" asp-area="" asp-controller="Profile" asp-action="Index">@User.Identity!.Name</a>
                 <form asp-area="" asp-controller="Account" asp-action="Logout" method="post">
                     <button class="btn btn-secondary" type="submit">Sign out</button>

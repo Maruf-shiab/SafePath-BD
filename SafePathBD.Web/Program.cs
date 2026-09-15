@@ -54,7 +54,9 @@ builder.Services.AddScoped<IAccidentReportService, AccidentReportService>();
 builder.Services.AddScoped<IHazardReportService, HazardReportService>();
 builder.Services.AddScoped<IReportImageService, ReportImageService>();
 builder.Services.AddScoped<IReportCommunityService, ReportCommunityService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IReportModerationService, ReportModerationService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 builder.Services.Configure<NominatimOptions>(builder.Configuration.GetSection(NominatimOptions.SectionName));
 
@@ -85,6 +87,19 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Low-risk baseline response headers. A strict CSP is intentionally deferred until all
+// existing inline script/style uses can be removed without breaking the established UI.
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] = "geolocation=(self), camera=(), microphone=()";
+    await next();
+});
+
+app.UseStatusCodePagesWithReExecute("/Home/StatusCode", "?code={0}");
 app.UseStaticFiles();
 
 app.UseRouting();

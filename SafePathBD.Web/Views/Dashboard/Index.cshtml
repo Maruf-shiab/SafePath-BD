@@ -2,158 +2,196 @@
 @{
     ViewData["Title"] = "Dashboard";
     var profile = Model.Profile;
-    var stats = Model.ReportStats;
+    var dashboard = Model.Dashboard;
     var firstName = profile.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? profile.FullName;
 }
 
 @section Head {
     <link rel="stylesheet" href="~/css/reports.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
 }
 
 <partial name="_PageHeader" model="@(new PageHeaderViewModel
 {
-    Eyebrow = "Your workspace",
+    Eyebrow = "Your safety workspace",
     Title = $"Welcome back, {firstName}",
-    Description = "Report what you see on the road, follow your submissions, and explore the safety map.",
+    Description = dashboard.NeedsInfo > 0
+        ? $"{dashboard.NeedsInfo} report{(dashboard.NeedsInfo == 1 ? " needs" : "s need")} your attention."
+        : "Track your reports, review updates, and return to the map from one place.",
     Chips = profile.Roles.Select(r => new PageHeaderChip(r, r == RoleNames.Admin ? "chip--accent" : "chip--muted")).ToList()
 })" />
 
 <section class="section section--tight">
-    <div class="shell dash-grid">
-        <div class="stack-5">
-            <div class="panel">
-                <div class="stack-2" style="margin-bottom: var(--space-5);">
-                    <h2 class="t-h3">Quick actions</h2>
-                    <p class="t-meta">Reporting, the map and emergency service search are live.</p>
+    <div class="shell dashboard-layout">
+        <div class="dashboard-main stack-5">
+            @if (dashboard.ActionRequired.Count > 0)
+            {
+                <section class="dashboard-focus" data-reveal>
+                    <div class="dashboard-focus-head">
+                        <div>
+                            <span class="t-eyebrow">Action required</span>
+                            <h2 class="t-h2">A reviewer needs more information</h2>
+                        </div>
+                        <span class="dashboard-focus-count" data-countup="@dashboard.ActionRequired.Count">@dashboard.ActionRequired.Count</span>
+                    </div>
+                    <div class="action-required-list">
+                        @foreach (var item in dashboard.ActionRequired)
+                        {
+                            <a class="action-required-item" asp-controller="Reports" asp-action="Details" asp-route-id="@item.ReportId">
+                                <div>
+                                    <strong>@item.Title</strong>
+                                    <p>@(string.IsNullOrWhiteSpace(item.ReviewerNote) ? "Open the report to review the moderator request." : item.ReviewerNote)</p>
+                                </div>
+                                <span>@item.UpdatedAt.ToString("d MMM, HH:mm")</span>
+                            </a>
+                        }
+                    </div>
+                </section>
+            }
+
+            <section class="panel dashboard-status" data-reveal>
+                <div class="dashboard-section-head">
+                    <div>
+                        <span class="t-eyebrow">Report status</span>
+                        <h2 class="t-h3">Your reporting activity</h2>
+                    </div>
+                    <a class="btn btn-ghost" asp-controller="Reports" asp-action="My">View all reports</a>
                 </div>
 
-                <div class="tile-grid">
-                    <a class="card card--interactive" asp-controller="Reports" asp-action="Accident">
-                        <span class="card-icon card-icon--danger" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M4 16.5V13l1.8-4.2A2 2 0 0 1 7.7 7.5h8.6a2 2 0 0 1 1.9 1.3L20 13v3.5" />
-                                <path d="M4 16.5h16M6.8 16.5v2M17.2 16.5v2M7.5 12.7h9" />
-                            </svg>
-                        </span>
-                        <h3 class="t-h3 card-title">Report an accident</h3>
-                        <p class="t-body">Record what happened, where, and how severe it was.</p>
-                    </a>
-
-                    <a class="card card--interactive" asp-controller="Reports" asp-action="Hazard">
-                        <span class="card-icon card-icon--caution" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 9.2v4M12 16.4h.01" />
-                                <path d="M10.3 4.4 2.6 17.6a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.4a2 2 0 0 0-3.4 0Z" />
-                            </svg>
-                        </span>
-                        <h3 class="t-h3 card-title">Report a hazard</h3>
-                        <p class="t-body">Potholes, waterlogging, broken signals and blockages.</p>
-                    </a>
-
-                    <a class="card card--interactive" asp-controller="Map" asp-action="Index">
-                        <span class="card-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 4-6 2.5v13L9 17l6 3 6-2.5v-13L15 7 9 4Z" /><path d="M9 4v13M15 7v13" /></svg>
-                        </span>
-                        <h3 class="t-h3 card-title">Open the map</h3>
-                        <p class="t-body">Explore the road network and verified reports.</p>
-                    </a>
-
-                    <a class="card card--interactive" asp-controller="Map" asp-action="Index">
-                        <span class="card-icon card-icon--info" aria-hidden="true">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v10M7 12h10" /><rect x="3.5" y="3.5" width="17" height="17" rx="4" /></svg>
-                        </span>
-                        <h3 class="t-h3 card-title">Emergency services</h3>
-                        <p class="t-body">Find nearby hospitals, police, fire services and ambulances.</p>
-                    </a>
-                </div>
-            </div>
-
-            <div class="panel">
-                <div class="cluster" style="justify-content: space-between; margin-bottom: var(--space-5);">
-                    <div class="stack-2">
-                        <h2 class="t-h3">Your reports</h2>
-                        <p class="t-meta">Counts come from your submitted reports.</p>
+                <div class="dashboard-metrics" aria-label="Report metrics">
+                    <div class="dashboard-metric dashboard-metric--primary">
+                        <span class="dashboard-metric-value" data-countup="@dashboard.TotalReports">@dashboard.TotalReports</span>
+                        <span class="dashboard-metric-label">Total reports</span>
                     </div>
-                    @if (stats.Total > 0)
-                    {
-                        <a class="btn btn-ghost" asp-controller="Reports" asp-action="My">View all</a>
-                    }
-                </div>
-
-                <div class="stat-strip">
-                    <div class="stat">
-                        <span class="stat-value">@stats.Total</span>
-                        <span class="stat-label">Total</span>
+                    <div class="dashboard-metric">
+                        <span class="dashboard-metric-value" data-countup="@(dashboard.Pending + dashboard.UnderReview)">@(dashboard.Pending + dashboard.UnderReview)</span>
+                        <span class="dashboard-metric-label">Awaiting review</span>
                     </div>
-                    <div class="stat">
-                        <span class="stat-value">@stats.Pending</span>
-                        <span class="stat-label">Awaiting review</span>
+                    <div class="dashboard-metric dashboard-metric--attention">
+                        <span class="dashboard-metric-value" data-countup="@dashboard.NeedsInfo">@dashboard.NeedsInfo</span>
+                        <span class="dashboard-metric-label">Needs information</span>
                     </div>
-                    <div class="stat">
-                        <span class="stat-value">@stats.Verified</span>
-                        <span class="stat-label">Verified</span>
+                    <div class="dashboard-metric dashboard-metric--safe">
+                        <span class="dashboard-metric-value" data-countup="@dashboard.Verified">@dashboard.Verified</span>
+                        <span class="dashboard-metric-label">Verified</span>
                     </div>
-                    <div class="stat">
-                        <span class="stat-value">@stats.Resolved</span>
-                        <span class="stat-label">Resolved</span>
+                    <div class="dashboard-metric">
+                        <span class="dashboard-metric-value" data-countup="@dashboard.Resolved">@dashboard.Resolved</span>
+                        <span class="dashboard-metric-label">Resolved</span>
                     </div>
                 </div>
+            </section>
 
-                @if (Model.RecentReports.Count == 0)
+            <section class="panel" data-reveal>
+                <div class="dashboard-section-head">
+                    <div>
+                        <span class="t-eyebrow">Recent reports</span>
+                        <h2 class="t-h3">Latest submissions</h2>
+                    </div>
+                </div>
+                @if (dashboard.RecentReports.Count == 0)
                 {
-                    <div class="empty-state" style="margin-top: var(--space-4);">
+                    <div class="empty-state">
                         <h3 class="t-h3">No reports yet</h3>
-                        <p class="t-body">Your submissions will appear here with their review status.</p>
+                        <p class="t-body">Help make nearby roads safer by reporting an accident or hazard.</p>
                         <div class="cluster">
-                            <a class="btn btn-primary" asp-controller="Reports" asp-action="Accident">Report an accident</a>
-                            <a class="btn btn-secondary" asp-controller="Reports" asp-action="Hazard">Report a hazard</a>
+                            <a class="btn btn-primary" asp-controller="Reports" asp-action="Accident">Report accident</a>
+                            <a class="btn btn-secondary" asp-controller="Reports" asp-action="Hazard">Report hazard</a>
                         </div>
                     </div>
                 }
                 else
                 {
-                    <div class="report-list" style="margin-top: var(--space-4);">
-                        @foreach (var report in Model.RecentReports)
+                    <div class="report-list dashboard-report-list">
+                        @foreach (var report in dashboard.RecentReports)
                         {
                             <partial name="_ReportCard" model="report" />
                         }
                     </div>
                 }
-            </div>
+            </section>
 
-            <div class="panel">
-                <div class="stack-2" style="margin-bottom: var(--space-5);">
-                    <h2 class="t-h3">Modules in progress</h2>
-                    <p class="t-meta">These arrive in later development phases.</p>
-                </div>
-
-                <div class="tile-grid">
-                    <div class="module-tile">
-                        <h3 class="t-h3">Community verification</h3>
-                        <p class="t-meta">Confirm or dispute reports and discuss them with other travellers.</p>
-                        <span class="chip chip--safe">Available</span>
-                    </div>
-                    <div class="module-tile">
-                        <h3 class="t-h3">Safe route comparison</h3>
-                        <p class="t-meta">Compare safest, fastest and shortest with an explainable score.</p>
-                        <span class="chip chip--muted">Planned</span>
-                    </div>
-                    <div class="module-tile">
-                        <h3 class="t-h3">Saved places &amp; routes</h3>
-                        <p class="t-meta">Keep the journeys and locations you use most within reach.</p>
-                        <span class="chip chip--muted">Planned</span>
-                    </div>
-                    <div class="module-tile">
-                        <h3 class="t-h3">Notifications</h3>
-                        <p class="t-meta">Hear back when a report you submitted has been reviewed.</p>
-                        <span class="chip chip--muted">Planned</span>
+            <section class="panel" data-reveal>
+                <div class="dashboard-section-head">
+                    <div>
+                        <span class="t-eyebrow">Recent activity</span>
+                        <h2 class="t-h3">What changed</h2>
                     </div>
                 </div>
-            </div>
+                @if (dashboard.RecentActivity.Count == 0)
+                {
+                    <div class="empty-state"><p class="t-body">Your recent report and notification activity will appear here.</p></div>
+                }
+                else
+                {
+                    <div class="dashboard-timeline">
+                        @foreach (var activity in dashboard.RecentActivity)
+                        {
+                            <div class="dashboard-timeline-item">
+                                <span class="dashboard-timeline-dot" aria-hidden="true"></span>
+                                <div>
+                                    <strong>@activity.Title</strong>
+                                    <p>@activity.Description</p>
+                                    <span class="t-micro t-muted">@activity.OccurredAt.ToString("d MMM yyyy, HH:mm")</span>
+                                </div>
+                                @if (activity.ReportId is not null)
+                                {
+                                    <a class="btn btn-ghost" asp-controller="Reports" asp-action="Details" asp-route-id="@activity.ReportId">Open</a>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
         </div>
 
-        <aside class="stack-5">
-            <div class="panel">
+        <aside class="dashboard-side stack-5">
+            <section class="panel dashboard-actions" data-reveal>
+                <span class="t-eyebrow">Quick actions</span>
+                <div class="dashboard-action-grid">
+                    <a asp-controller="Map" asp-action="Index"><span>Map</span><small>Explore verified reports</small></a>
+                    <a asp-controller="Reports" asp-action="Accident"><span>Accident</span><small>Submit a road incident</small></a>
+                    <a asp-controller="Reports" asp-action="Hazard"><span>Hazard</span><small>Report a road danger</small></a>
+                    <a asp-controller="Map" asp-action="Index" asp-fragment="emergency"><span>Emergency</span><small>Find nearby services</small></a>
+                </div>
+            </section>
+
+            <section class="panel" data-reveal>
+                <div class="dashboard-section-head">
+                    <div>
+                        <span class="t-eyebrow">Notifications</span>
+                        <h2 class="t-h3">Latest updates</h2>
+                    </div>
+                    @if (dashboard.UnreadNotifications > 0)
+                    {
+                        <span class="chip chip--accent">@dashboard.UnreadNotifications unread</span>
+                    }
+                </div>
+                @if (dashboard.RecentNotifications.Count == 0)
+                {
+                    <div class="dashboard-compact-empty">You're all caught up.</div>
+                }
+                else
+                {
+                    <div class="dashboard-notification-list">
+                        @foreach (var notification in dashboard.RecentNotifications)
+                        {
+                            <a class="dashboard-notification @(notification.IsRead ? "is-read" : "is-unread")"
+                               data-notification-link data-notification-id="@notification.NotificationId" data-notification-read="@(notification.IsRead ? "1" : "0")"
+                               href="@(notification.ActionUrl ?? Url.Action("Index", "Notifications"))">
+                                <span></span>
+                                <div>
+                                    <strong>@notification.Title</strong>
+                                    <p>@notification.Message</p>
+                                </div>
+                            </a>
+                        }
+                    </div>
+                }
+                <a class="btn btn-secondary btn-block" asp-controller="Notifications" asp-action="Index">Open notifications</a>
+            </section>
+
+            <section class="panel" data-reveal>
                 <div class="identity" style="margin-bottom: var(--space-5);">
                     <span class="avatar" aria-hidden="true">@profile.Initials</span>
                     <div class="stack-2">
@@ -161,37 +199,26 @@
                         <span class="t-meta">@profile.Email</span>
                     </div>
                 </div>
-
                 <dl class="detail-list">
-                    <div class="detail-row">
-                        <dt>Account status</dt>
-                        <dd><span class="chip @(profile.IsActive ? "chip--safe" : "chip--danger")">@(profile.IsActive ? "Active" : "Deactivated")</span></dd>
-                    </div>
-                    <div class="detail-row">
-                        <dt>Roles</dt>
-                        <dd>@string.Join(", ", profile.Roles)</dd>
-                    </div>
-                    <div class="detail-row">
-                        <dt>Member since</dt>
-                        <dd>@profile.JoinedAt.ToString("d MMM yyyy")</dd>
-                    </div>
+                    <div class="detail-row"><dt>Account</dt><dd><span class="chip @(profile.IsActive ? "chip--safe" : "chip--danger")">@(profile.IsActive ? "Active" : "Deactivated")</span></dd></div>
+                    <div class="detail-row"><dt>Member since</dt><dd>@profile.JoinedAt.ToString("d MMM yyyy")</dd></div>
                 </dl>
+                <a class="btn btn-secondary btn-block" asp-controller="Profile" asp-action="Index" style="margin-top: var(--space-5);">View profile</a>
+            </section>
 
-                <a class="btn btn-secondary btn-block" asp-controller="Profile" asp-action="Index" style="margin-top: var(--space-5);">
-                    View full profile
-                </a>
-            </div>
-
-            @if (User.IsInRole(RoleNames.Admin))
+            @if (User.IsInRole(RoleNames.Moderator) || User.IsInRole(RoleNames.Admin))
             {
-                <div class="panel">
-                    <h3 class="t-h3 card-title">Administration</h3>
-                    <p class="t-body">You have administrator access to the SafePath BD management area.</p>
-                    <a class="btn btn-primary btn-block" asp-area="Admin" asp-controller="Dashboard" asp-action="Index" style="margin-top: var(--space-4);">
-                        Open admin area
-                    </a>
-                </div>
+                <section class="panel dashboard-role-panel" data-reveal>
+                    <span class="t-eyebrow">Review operations</span>
+                    <h3 class="t-h3">Moderation workspace</h3>
+                    <p class="t-body">See the live review queue and recent moderation activity.</p>
+                    <a class="btn btn-primary btn-block" asp-area="Admin" asp-controller="ModeratorDashboard" asp-action="Index">Open moderation dashboard</a>
+                </section>
             }
         </aside>
     </div>
 </section>
+
+@section Scripts {
+    <script src="~/js/dashboard.js" asp-append-version="true" defer></script>
+}

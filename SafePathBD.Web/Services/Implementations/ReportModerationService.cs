@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SafePathBD.Web.Common;
 using SafePathBD.Web.Data;
 using SafePathBD.Web.Models.DTOs.Moderation;
+using SafePathBD.Web.Models.DTOs.Notifications;
 using SafePathBD.Web.Models.DTOs.Reports;
 using SafePathBD.Web.Models.Entities;
 using SafePathBD.Web.Services.Interfaces;
@@ -19,12 +20,18 @@ public sealed class ReportModerationService : IReportModerationService
 
     private readonly SafePathDbContext _db;
     private readonly IReportService _reportService;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<ReportModerationService> _logger;
 
-    public ReportModerationService(SafePathDbContext db, IReportService reportService, ILogger<ReportModerationService> logger)
+    public ReportModerationService(
+        SafePathDbContext db,
+        IReportService reportService,
+        INotificationService notificationService,
+        ILogger<ReportModerationService> logger)
     {
         _db = db;
         _reportService = reportService;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -264,6 +271,19 @@ public sealed class ReportModerationService : IReportModerationService
             {
                 promoted = await PromoteAccidentAsync(report, decision.ReviewerUserId, now, cancellationToken);
             }
+
+            // Notification creation joins the same unit of work. If the database write fails,
+            // the moderation decision, verification, audit row and notification roll back together.
+            // The service intentionally ignores UNDER_REVIEW and other noisy transitions.
+            await _notificationService.QueueReportStatusNotificationAsync(
+                new ReportStatusNotificationRequest(
+                    report.ReportId,
+                    report.UserId,
+                    report.Title,
+                    decision.TargetStatusCode,
+                    note,
+                    now),
+                cancellationToken);
 
             // status_id is mapped as a concurrency token, so this throws rather than
             // overwriting a decision another reviewer committed while this page was open.

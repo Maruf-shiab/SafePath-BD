@@ -454,3 +454,21 @@ Proceed only when foundation is stable
 ```
 
 If the database connection, authentication, or current module is broken, fix it before adding later features.
+
+---
+
+# First Major Milestone — Chunk 5 Completion Boundary
+
+The current implementation completes the first-half integration milestone through in-app notifications and operational dashboards while preserving the existing database-first schema.
+
+Completed in this milestone:
+
+- Report moderation outcome notifications (`VERIFIED`, `REJECTED`, `NEEDS_INFO`, `DUPLICATE`, `RESOLVED`).
+- User-owned notification history, unread count, navbar notification panel and read-state controls.
+- Real User dashboard with status metrics, recent reports, needs-information actions and recent notifications/activity.
+- Real Moderator operational dashboard with open queue pressure and verification activity.
+- Real Admin operational dashboard with user/report counts, report distribution and recent privileged actions.
+- Navigation, responsive, motion, empty/error-state and accessibility integration for the new modules.
+- Notification and dashboard service-level regression coverage.
+
+Second-half phases remain intentionally unstarted by Chunk 5: expanded roads/segments, safety-score calculation, routing provider, route safety comparison, saved places/routes and advanced analytics.

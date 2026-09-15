@@ -1,0 +1,40 @@
+@model SafePathBD.Web.Models.ViewModels.Notifications.NotificationBellViewModel
+
+<div class="notification-nav" data-notification-root data-initial-unread="@Model.UnreadCount">
+    <button class="notification-bell" type="button" data-notification-toggle aria-expanded="false" aria-controls="notification-panel" aria-label="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+            <path d="M10 21h4" />
+        </svg>
+        <span class="notification-badge" data-notification-badge @(Model.UnreadCount == 0 ? "hidden" : null)>@Model.UnreadCount</span>
+    </button>
+
+    <section class="notification-panel" id="notification-panel" data-notification-panel hidden aria-label="Recent notifications">
+        <div class="notification-panel-head">
+            <div>
+                <strong>Notifications</strong>
+                <span class="t-micro t-muted" data-notification-summary>
+                    @(Model.UnreadCount == 0 ? "You're all caught up." : $"{Model.UnreadCount} unread")
+                </span>
+            </div>
+            <button class="notification-panel-close" type="button" data-notification-close aria-label="Close notifications">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+        </div>
+
+        <div class="notification-panel-list" data-notification-list aria-live="polite">
+            <div class="notification-skeleton" aria-hidden="true">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+
+        <div class="notification-panel-footer">
+            <a class="btn btn-ghost" asp-area="" asp-controller="Notifications" asp-action="Index">View all notifications</a>
+            <button class="btn btn-ghost" type="button" data-notification-read-all @(Model.UnreadCount == 0 ? "disabled" : null)>Mark all read</button>
+        </div>
+    </section>
+
+    <form class="notification-antiforgery" data-notification-antiforgery hidden aria-hidden="true">
+        @Html.AntiForgeryToken()
+    </form>
+</div>

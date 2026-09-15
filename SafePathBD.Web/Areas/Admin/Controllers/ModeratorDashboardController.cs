@@ -2,25 +2,25 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SafePathBD.Web.Common;
 using SafePathBD.Web.Models.DTOs.Dashboard;
-using SafePathBD.Web.Security;
 using SafePathBD.Web.Services.Interfaces;
 
 namespace SafePathBD.Web.Areas.Admin.Controllers;
 
 [Area("Admin")]
-[Authorize(Roles = RoleNames.Admin)]
-public class DashboardController : Controller
+[Authorize(Roles = RoleNames.AdminOrModerator)]
+public sealed class ModeratorDashboardController : Controller
 {
     private readonly IDashboardService _dashboardService;
 
-    public DashboardController(IDashboardService dashboardService)
+    public ModeratorDashboardController(IDashboardService dashboardService)
     {
         _dashboardService = dashboardService;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        ViewData["AdminName"] = User.GetDisplayName();
-        return View(await _dashboardService.GetAdminDashboardAsync(cancellationToken));
+        ViewData["ReviewerName"] = User.Identity?.Name ?? "Reviewer";
+        var dashboard = await _dashboardService.GetModeratorDashboardAsync(cancellationToken);
+        return View(dashboard);
     }
 }

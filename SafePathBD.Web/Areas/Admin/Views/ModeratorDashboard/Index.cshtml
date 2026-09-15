@@ -1,0 +1,107 @@
+@model SafePathBD.Web.Models.DTOs.Dashboard.ModeratorDashboardDto
+@{
+    ViewData["Title"] = "Moderation dashboard";
+    var counts = Model.Counts;
+}
+
+@section Head {
+    <link rel="stylesheet" href="~/css/moderation.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+}
+
+<partial name="_PageHeader" model="@(new PageHeaderViewModel
+{
+    Eyebrow = "Review operations",
+    Title = "Moderation dashboard",
+    Description = "A live operational view of reports that need review and the decisions recently made.",
+    Chips = new[] { new PageHeaderChip("Moderator workspace", "chip--accent") }
+})" />
+
+<section class="section section--tight">
+    <div class="shell moderation-dashboard stack-5">
+        <section class="ops-metrics" aria-label="Moderation metrics">
+            <a class="ops-metric is-attention" asp-controller="ReportModeration" asp-action="Index" asp-route-status="@ReportStatusCodes.Pending">
+                <span data-countup="@counts.Pending">@counts.Pending</span><small>Pending</small>
+            </a>
+            <a class="ops-metric" asp-controller="ReportModeration" asp-action="Index" asp-route-status="@ReportStatusCodes.UnderReview">
+                <span data-countup="@counts.UnderReview">@counts.UnderReview</span><small>Under review</small>
+            </a>
+            <a class="ops-metric is-warning" asp-controller="ReportModeration" asp-action="Index" asp-route-status="@ReportStatusCodes.NeedsInfo">
+                <span data-countup="@counts.NeedsInfo">@counts.NeedsInfo</span><small>Needs info</small>
+            </a>
+            <a class="ops-metric is-safe" asp-controller="ReportModeration" asp-action="Index" asp-route-status="@ReportStatusCodes.Verified">
+                <span data-countup="@counts.Verified">@counts.Verified</span><small>Verified</small>
+            </a>
+            <a class="ops-metric is-danger" asp-controller="ReportModeration" asp-action="Index" asp-route-status="@ReportStatusCodes.Rejected">
+                <span data-countup="@counts.Rejected">@counts.Rejected</span><small>Rejected</small>
+            </a>
+        </section>
+
+        <div class="ops-grid">
+            <section class="panel">
+                <div class="dashboard-section-head">
+                    <div>
+                        <span class="t-eyebrow">Queue preview</span>
+                        <h2 class="t-h3">Reports needing attention</h2>
+                    </div>
+                    <a class="btn btn-primary" asp-controller="ReportModeration" asp-action="Index">Open review queue</a>
+                </div>
+
+                @if (Model.QueuePreview.Count == 0)
+                {
+                    <div class="empty-state"><h3 class="t-h3">All caught up</h3><p class="t-body">There are no reports waiting in the current queue.</p></div>
+                }
+                else
+                {
+                    <div class="ops-queue-list">
+                        @foreach (var report in Model.QueuePreview)
+                        {
+                            <a class="ops-queue-item" asp-controller="ReportModeration" asp-action="Review" asp-route-id="@report.ReportId">
+                                <span class="ops-queue-type">@(report.ReportType == ReportTypes.Accident ? "Accident" : "Hazard")</span>
+                                <div>
+                                    <strong>@report.Title</strong>
+                                    <p>@(report.AreaName ?? report.City ?? "Location recorded") · @report.ReportedAt.ToString("d MMM, HH:mm")</p>
+                                </div>
+                                <partial name="_ReportStatusChip" model="@((report.StatusCode, report.StatusName))" />
+                            </a>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="panel">
+                <div class="dashboard-section-head">
+                    <div>
+                        <span class="t-eyebrow">Recent decisions</span>
+                        <h2 class="t-h3">Moderation activity</h2>
+                    </div>
+                </div>
+                @if (Model.RecentActivity.Count == 0)
+                {
+                    <div class="empty-state"><p class="t-body">No moderation decisions have been recorded yet.</p></div>
+                }
+                else
+                {
+                    <div class="dashboard-timeline">
+                        @foreach (var item in Model.RecentActivity)
+                        {
+                            <div class="dashboard-timeline-item">
+                                <span class="dashboard-timeline-dot" aria-hidden="true"></span>
+                                <div>
+                                    <strong>@item.StatusName · @item.ReportTitle</strong>
+                                    <p>@(item.ReviewerName ?? "Removed account")</p>
+                                    <span class="t-micro t-muted">@item.OccurredAt.ToString("d MMM yyyy, HH:mm")</span>
+                                </div>
+                                <a class="btn btn-ghost" asp-controller="ReportModeration" asp-action="Review" asp-route-id="@item.ReportId">Review</a>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script src="~/js/dashboard.js" asp-append-version="true" defer></script>
+}

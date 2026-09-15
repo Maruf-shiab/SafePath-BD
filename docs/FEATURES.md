@@ -578,3 +578,21 @@ Do not make unsupported causal claims.
 - Automatic incident detection
 - Live emergency dispatch integration
 - Advanced map matching
+
+---
+
+# Current First-Milestone Status (Chunk 5)
+
+The following features are implemented in the current application and use real database data:
+
+- Authentication and role authorization.
+- Leaflet/OpenStreetMap map, geocoding/reverse geocoding and emergency-service discovery.
+- Accident/hazard reporting, protected report images, My Reports and report details.
+- Community confirm/dispute voting and report comments.
+- Moderator/Admin review queue, verification history, audit actions, status transitions and trusted accident promotion.
+- In-app report-outcome notifications, unread badge/panel, paginated notification center, mark-one-read and mark-all-read.
+- Real User dashboard, Moderator operational dashboard and Admin operational dashboard.
+
+For report workflow notifications, the current database's notification lookup values are respected exactly. `NEEDS_INFO` and `DUPLICATE` use the existing `SYSTEM` notification type because dedicated lookup rows do not exist. No schema/lookup mutation is performed by Chunk 5.
+
+Features described elsewhere in this document such as safety-score calculation, routing, safest/fastest/shortest route comparison, saved places/routes and advanced analytics describe the intended second half; they are not represented as completed functionality in the current UI.

@@ -1,6 +1,12 @@
 @model int
+@{
+    var area = ViewContext.RouteData.Values["area"] as string;
+    var controller = ViewContext.RouteData.Values["controller"] as string;
+    var isActive = string.Equals(area, "Admin", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(controller, "ReportModeration", StringComparison.OrdinalIgnoreCase);
+}
 
-<a class="nav-link-badge" asp-area="Admin" asp-controller="ReportModeration" asp-action="Index">
+<a class="nav-link-badge @(isActive ? "is-active" : null)" asp-area="Admin" asp-controller="ReportModeration" asp-action="Index">
     Review
     @if (Model > 0)
     {

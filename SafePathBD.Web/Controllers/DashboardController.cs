@@ -10,12 +10,12 @@ namespace SafePathBD.Web.Controllers;
 public class DashboardController : Controller
 {
     private readonly IUserService _userService;
-    private readonly IReportService _reportService;
+    private readonly IDashboardService _dashboardService;
 
-    public DashboardController(IUserService userService, IReportService reportService)
+    public DashboardController(IUserService userService, IDashboardService dashboardService)
     {
         _userService = userService;
-        _reportService = reportService;
+        _dashboardService = dashboardService;
     }
 
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -27,9 +27,6 @@ public class DashboardController : Controller
         {
             return Forbid();
         }
-
-        var stats = await _reportService.GetMyReportStatsAsync(userId, cancellationToken);
-        var recent = await _reportService.GetRecentReportsForUserAsync(userId, 4, cancellationToken);
 
         return View(new DashboardViewModel
         {
@@ -44,8 +41,7 @@ public class DashboardController : Controller
                 LastLoginAt = profile.LastLoginAt,
                 Roles = profile.Roles
             },
-            ReportStats = stats,
-            RecentReports = recent
+            Dashboard = await _dashboardService.GetUserDashboardAsync(userId, cancellationToken)
         });
     }
 }

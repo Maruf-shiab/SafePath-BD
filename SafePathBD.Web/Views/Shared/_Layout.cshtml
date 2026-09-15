@@ -1,15 +1,16 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0b1220" />
-    <meta name="description" content="SafePath BD — smart road safety and safe route recommendation." />
+    <meta name="description" content="SafePath BD — community road-safety reporting, emergency-service discovery and verified road-safety information." />
     <title>@ViewData["Title"] · SafePath BD</title>
     <link rel="stylesheet" href="~/css/tokens.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/base.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/components.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/notifications.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/motion.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/responsive.css" asp-append-version="true" />
     @await RenderSectionAsync("Head", required: false)
@@ -32,6 +33,10 @@
 
     <script src="~/js/toast.js" asp-append-version="true"></script>
     <script src="~/js/app.js" asp-append-version="true" defer></script>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <script src="~/js/notifications.js" asp-append-version="true" defer></script>
+    }
     <script src="~/js/motion.js" asp-append-version="true" defer></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

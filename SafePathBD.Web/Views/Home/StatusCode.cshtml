@@ -1,0 +1,35 @@
+@model int
+@{
+    var isNotFound = Model == 404;
+    ViewData["Title"] = isNotFound ? "Page not found" : "Request unavailable";
+}
+
+<div class="status-page shell">
+    <div class="status-page-inner">
+        <span class="status-glyph" aria-hidden="true">
+            @if (isNotFound)
+            {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 9.5a3.5 3.5 0 1 1 5 3.2c-1.5.7-2.5 1.4-2.5 3.3" /><path d="M12 19h.01" /><circle cx="12" cy="12" r="9" /></svg>
+            }
+            else
+            {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v5M12 17h.01" /><circle cx="12" cy="12" r="9" /></svg>
+            }
+        </span>
+
+        <span class="t-eyebrow">HTTP @Model</span>
+        <h1 class="t-h1">@(isNotFound ? "That page isn't here" : "This request isn't available")</h1>
+        <p class="t-lead" style="text-align:center;">
+            @(isNotFound
+                ? "The address may have changed or the page may no longer exist."
+                : "SafePath BD couldn't complete this request. Return to a known page and try again.")
+        </p>
+        <div class="cluster" style="justify-content:center; margin-top:var(--space-3);">
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <a class="btn btn-primary" asp-controller="Dashboard" asp-action="Index">Back to dashboard</a>
+            }
+            <a class="btn btn-secondary" asp-controller="Home" asp-action="Index">Go to home</a>
+        </div>
+    </div>
+</div>
