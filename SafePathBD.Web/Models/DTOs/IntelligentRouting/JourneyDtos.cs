@@ -80,6 +80,9 @@ public sealed class JourneyOptionDto
     public double DataConfidence { get; init; }
     public double Resilience { get; init; }
     public int HazardCount { get; init; }
+    public string IncidentState { get; init; } = RouteIncidentStates.Clear;
+    public int AffectedIncidentCount { get; init; }
+    public int CautionIncidentCount { get; init; }
     public double GeneralizedCost { get; set; }
     public IReadOnlyList<JourneyLegDto> Legs { get; init; } = Array.Empty<JourneyLegDto>();
     public string Explanation { get; set; } = string.Empty;

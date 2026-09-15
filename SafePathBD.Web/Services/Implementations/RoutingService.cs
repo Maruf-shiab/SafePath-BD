@@ -130,7 +130,41 @@ public sealed class RoutingService : IRoutingService
             }
         }
 
-        // Recalculate flags after a generated detour is added. Shortest remains distance-based;
+        // If the best usable route is heavily congested at the selected/current time, probe a
+        // genuinely different OSRM corridor too. This keeps Smart Journey from ranking only the
+        // same jammed road simply because the provider's default alternatives overlap heavily.
+        if (_options.TrafficDetourEnabled && trafficEstimateAvailable)
+        {
+            var trafficReference = candidates
+                .Where(c => c.IncidentState != RouteIncidentStates.Affected && c.TrafficEstimateAvailable)
+                .OrderBy(c => c.EffectiveDurationSeconds)
+                .ThenBy(c => c.DistanceMeters)
+                .FirstOrDefault();
+
+            if (trafficReference is not null
+                && (trafficReference.PredictedCongestionIndex ?? 0d) >= _options.TrafficDetourCongestionThreshold)
+            {
+                detourAttempted = true;
+                var trafficDetour = await TryBuildTrafficDetourAsync(
+                    request,
+                    trafficReference,
+                    candidates,
+                    trafficEstimatedAt,
+                    cancellationToken);
+
+                if (trafficDetour is not null)
+                {
+                    candidates.Add(trafficDetour);
+                    incidentCheckAvailable &= trafficDetour.IncidentCheckAvailable;
+                    trafficEstimateAvailable = true;
+                    detourMessage = string.IsNullOrWhiteSpace(detourMessage)
+                        ? "A separate road alternative was generated because predicted congestion was high on the best available corridor."
+                        : detourMessage + " A separate low-congestion alternative was also evaluated.";
+                }
+            }
+        }
+
+        // Recalculate flags after generated detours are added. Shortest remains distance-based;
         // Fastest uses SafePath's predicted traffic ETA when available and provider ETA otherwise.
         MarkShortestAndFastest(candidates);
         shortest = candidates.Single(c => c.IsShortest);
@@ -607,6 +641,111 @@ public sealed class RoutingService : IRoutingService
         }
 
         return cautionFallback;
+    }
+
+    private async Task<RouteCandidateDto?> TryBuildTrafficDetourAsync(
+        RouteSearchRequest request,
+        RouteCandidateDto reference,
+        IReadOnlyList<RouteCandidateDto> existing,
+        DateTimeOffset trafficEstimatedAt,
+        CancellationToken cancellationToken)
+    {
+        if (reference.Geometry.Count < 3 || !reference.TrafficEstimateAvailable)
+        {
+            return null;
+        }
+
+        var midpointIndex = Math.Clamp(reference.Geometry.Count / 2, 0, reference.Geometry.Count - 2);
+        var routeBearing = ResolveLocalBearing(reference.Geometry, midpointIndex);
+        RouteCandidateDto? best = null;
+
+        for (var attempt = 0; attempt < Math.Min(_options.MaxDetourAttempts, 4); attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var side = attempt % 2 == 0 ? 90d : -90d;
+            var multiplier = 1d + (attempt / 2) * 0.65d;
+            var offsetMeters = _options.DetourOffsetMeters * multiplier;
+            var anchorDistance = Math.Max(300d, Math.Min(1000d, offsetMeters * 0.9d));
+            var before = FindRouteAnchor(reference.Geometry, midpointIndex, anchorDistance, backwards: true);
+            var after = FindRouteAnchor(reference.Geometry, midpointIndex + 1, anchorDistance, backwards: false);
+            var sideBearing = routeBearing + side;
+            var vias = new[]
+            {
+                RouteGeometryMath.DestinationPoint(before, offsetMeters, sideBearing),
+                RouteGeometryMath.DestinationPoint(after, offsetMeters, sideBearing)
+            };
+
+            IReadOnlyList<ProviderRouteCandidate> routed;
+            try
+            {
+                routed = await _provider.GetRoutesAsync(
+                    new RoutingProviderRequest(
+                        ToCoordinate(request.Start),
+                        ToCoordinate(request.Destination),
+                        vias,
+                        RequestAlternatives: false),
+                    cancellationToken);
+            }
+            catch (RoutingProviderNoRouteException)
+            {
+                continue;
+            }
+            catch (RoutingProviderUnavailableException ex)
+            {
+                _logger.LogInformation(ex, "Traffic detour attempt {Attempt} could not be routed.", attempt + 1);
+                continue;
+            }
+
+            foreach (var providerRoute in routed)
+            {
+                if (providerRoute.DistanceMeters > reference.DistanceMeters * _options.MaxDetourDistanceFactor)
+                {
+                    continue;
+                }
+                if (existing.Any(existingCandidate => AreNearDuplicate(existingCandidate.Geometry, providerRoute.Geometry)))
+                {
+                    continue;
+                }
+
+                var candidate = ToCandidate(
+                    providerRoute,
+                    $"traffic-detour-{attempt + 1}",
+                    isDetour: true,
+                    providerIndex: 20_000 + attempt);
+
+                var incidentWorked = await AssessCandidateAsync(candidate, cancellationToken);
+                if (!incidentWorked || candidate.IncidentState == RouteIncidentStates.Affected)
+                {
+                    continue;
+                }
+
+                var trafficWorked = await AssessTrafficAsync(candidate, trafficEstimatedAt, cancellationToken);
+                if (!trafficWorked)
+                {
+                    continue;
+                }
+
+                var congestionGain = (reference.PredictedCongestionIndex ?? 0d) - (candidate.PredictedCongestionIndex ?? 0d);
+                var timeGainRatio = (reference.EffectiveDurationSeconds - candidate.EffectiveDurationSeconds)
+                    / Math.Max(1d, reference.EffectiveDurationSeconds);
+                var materiallyBetter = timeGainRatio >= _options.TrafficDetourMinTimeGainPercent
+                    || congestionGain >= _options.TrafficDetourMinCongestionGain;
+                if (!materiallyBetter)
+                {
+                    continue;
+                }
+
+                if (best is null
+                    || candidate.EffectiveDurationSeconds < best.EffectiveDurationSeconds
+                    || (Math.Abs(candidate.EffectiveDurationSeconds - best.EffectiveDurationSeconds) < 1d
+                        && candidate.DistanceMeters < best.DistanceMeters))
+                {
+                    best = candidate;
+                }
+            }
+        }
+
+        return best;
     }
 
     private static RouteCoordinate FindRouteAnchor(

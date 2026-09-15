@@ -1,4 +1,5 @@
 using SafePathBD.Web.Models.DTOs.IntelligentRouting;
+using SafePathBD.Web.Models.DTOs.Routing;
 using SafePathBD.Web.Services.Interfaces;
 
 namespace SafePathBD.Web.Services.Implementations;
@@ -10,13 +11,17 @@ public sealed class RouteExplanationService : IRouteExplanationService
         var fastest = candidatePool.OrderBy(x => x.TotalDurationMinutes).FirstOrDefault();
         var reasons = new List<string>();
 
-        if (option.HazardCount == 0)
+        if (option.IncidentState == RouteIncidentStates.Clear)
         {
-            reasons.Add("no critical verified road hazard is carried by this journey");
+            reasons.Add("no active verified accident or serious hazard was detected on this option");
+        }
+        else if (option.IncidentState == RouteIncidentStates.Caution)
+        {
+            reasons.Add($"it has only caution-level verified incident information ({option.CautionIncidentCount} signal(s))");
         }
         else
         {
-            reasons.Add($"it limits the journey to {option.HazardCount} verified hazard/incident signal(s)");
+            reasons.Add($"all available practical alternatives still contain an affected verified incident ({option.AffectedIncidentCount} signal(s))");
         }
 
         if (option.SafetyExposure.ElevatedRiskMinutes <= 3)
@@ -27,6 +32,10 @@ public sealed class RouteExplanationService : IRouteExplanationService
         if (option.PredictedCongestionIndex < 55)
         {
             reasons.Add($"predicted congestion is {option.TrafficLevel.ToLowerInvariant()}");
+        }
+        else
+        {
+            reasons.Add($"its predicted congestion is {option.TrafficLevel.ToLowerInvariant()} ({option.PredictedCongestionIndex:0}/100)");
         }
 
         if (option.TransferCount <= 1)
@@ -45,7 +54,7 @@ public sealed class RouteExplanationService : IRouteExplanationService
 
         if (reasons.Count == 0)
         {
-            reasons.Add("it has the lowest configured balance of travel time, safety signal, congestion, walking, transfers, distance and resilience");
+            reasons.Add("it has the lowest configured balance of travel time, verified incident state, predicted congestion, walking, transfers, distance and resilience");
         }
 
         return "This journey is recommended because " + string.Join(", ", reasons) + ".";
@@ -54,7 +63,18 @@ public sealed class RouteExplanationService : IRouteExplanationService
     public IReadOnlyList<JourneyTradeoffDto> ExplainTradeoffs(JourneyOptionDto option, JourneyOptionDto benchmark)
     {
         var items = new List<JourneyTradeoffDto>();
-        if (option.Id == benchmark.Id) return items;
+        if (option.Id == benchmark.Id)
+        {
+            return items;
+        }
+
+        if (!string.Equals(option.IncidentState, benchmark.IncidentState, StringComparison.OrdinalIgnoreCase))
+        {
+            items.Add(new JourneyTradeoffDto(
+                "Verified incidents",
+                $"This option is {FriendlyIncident(option.IncidentState)}, while the recommended option is {FriendlyIncident(benchmark.IncidentState)}.",
+                IncidentRank(option.IncidentState) < IncidentRank(benchmark.IncidentState) ? "positive" : "warning"));
+        }
 
         var time = option.TotalDurationMinutes - benchmark.TotalDurationMinutes;
         if (Math.Abs(time) >= 0.5)
@@ -92,6 +112,14 @@ public sealed class RouteExplanationService : IRouteExplanationService
                 delta < 0 ? "positive" : "warning"));
         }
 
+        if (!string.Equals(ModeSignature(option), ModeSignature(benchmark), StringComparison.OrdinalIgnoreCase))
+        {
+            items.Add(new JourneyTradeoffDto(
+                "Travel modes",
+                $"Uses {ReadableModes(option)} instead of {ReadableModes(benchmark)}.",
+                "neutral"));
+        }
+
         var resilience = option.Resilience - benchmark.Resilience;
         if (Math.Abs(resilience) >= 3)
         {
@@ -103,4 +131,24 @@ public sealed class RouteExplanationService : IRouteExplanationService
 
         return items;
     }
+
+    private static int IncidentRank(string? state) => state switch
+    {
+        RouteIncidentStates.Affected => 2,
+        RouteIncidentStates.Caution => 1,
+        _ => 0
+    };
+
+    private static string FriendlyIncident(string? state) => state switch
+    {
+        RouteIncidentStates.Affected => "affected by a serious verified incident",
+        RouteIncidentStates.Caution => "under caution from a verified incident",
+        _ => "clear of currently detected active verified incidents"
+    };
+
+    private static string ModeSignature(JourneyOptionDto option) =>
+        string.Join(">", option.Modes.Select(m => m.Trim().ToUpperInvariant()));
+
+    private static string ReadableModes(JourneyOptionDto option) =>
+        string.Join(" → ", option.Modes.Select(m => m.ToLowerInvariant()));
 }

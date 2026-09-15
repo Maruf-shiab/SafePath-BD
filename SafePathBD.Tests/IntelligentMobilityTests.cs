@@ -189,6 +189,34 @@ public sealed class IntelligentMobilityTests
     }
 
 
+    [Fact]
+    public async Task KBestPlanner_ExplicitlyExploresSelectedVehicleAndMultimodalProfiles()
+    {
+        var recorder = new RecordingJourneyRouter();
+        var planner = new KBestJourneyPlanner(recorder, Options.Create(new IntelligentMobilityOptions
+        {
+            CandidatePoolSize = 20
+        }));
+        var request = Request(
+            MobilityModes.Walk,
+            MobilityModes.Rickshaw,
+            MobilityModes.Bus,
+            MobilityModes.Motorbike,
+            MobilityModes.Car);
+
+        await planner.FindCandidatesAsync(BasicGraph(), request);
+
+        Assert.Contains("BUS", recorder.ModeSets);
+        Assert.Contains("CAR", recorder.ModeSets);
+        Assert.Contains("MOTORBIKE", recorder.ModeSets);
+        Assert.Contains("RICKSHAW", recorder.ModeSets);
+        Assert.Contains("WALK", recorder.ModeSets);
+        Assert.Contains("BUS|WALK", recorder.ModeSets);
+        Assert.Contains("BUS|RICKSHAW", recorder.ModeSets);
+        Assert.Contains("BUS|RICKSHAW|WALK", recorder.ModeSets);
+    }
+
+
     private static JourneyPath PathAlong(IReadOnlyList<RouteCoordinate> geometry, int edgeId)
     {
         var from = geometry[0];
@@ -228,6 +256,57 @@ public sealed class IntelligentMobilityTests
     private sealed class RecordingTravel:IVehicleTravelTimeService{public List<DateTimeOffset> SeenTimes{get;}=[];public Task<VehicleTravelTimeEstimate> EstimateAsync(string mode,double meters,TrafficPredictionRequest r,string? busRouteId=null,bool includeBusWait=false,CancellationToken c=default){SeenTimes.Add(r.At);var t=new TrafficPredictionResult(50,"MODERATE","TEST","HIGH","T","1",r.TrafficRoadId,"R","secondary",0);return Task.FromResult(new VehicleTravelTimeEstimate(mode,meters,20,7,t,true));}}
     private sealed class ClearSafety:ISegmentSafetyProvider{public Task<SegmentSafetySnapshot> GetSafetyAsync(string? id,IReadOnlyList<RouteCoordinate> g,IReadOnlyList<RouteIncidentDto> incidents,CancellationToken c=default)=>Task.FromResult(new SegmentSafetySnapshot(85,"LOWER",RouteIncidentStates.Clear,"TEST",1,0,false));}
     private sealed class HardBlockSafety:ISegmentSafetyProvider{public Task<SegmentSafetySnapshot> GetSafetyAsync(string? id,IReadOnlyList<RouteCoordinate> g,IReadOnlyList<RouteIncidentDto> incidents,CancellationToken c=default)=>Task.FromResult(id=="BLOCKED"?new SegmentSafetySnapshot(10,"VERY_HIGH",RouteIncidentStates.Affected,"TEST",1,1,true):new SegmentSafetySnapshot(85,"LOWER",RouteIncidentStates.Clear,"TEST",1,0,false));}
+    private sealed class RecordingJourneyRouter : ITimeDependentJourneyRouter
+    {
+        private int _nextEdge = 1000;
+        public HashSet<string> ModeSets { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public Task<JourneyPath?> FindBestAsync(
+            MobilityGraph graph,
+            IntelligentRouteRequest request,
+            IReadOnlySet<int>? excludedEdgeIds = null,
+            string? singleModeOnly = null,
+            CancellationToken cancellationToken = default)
+        {
+            var modes = request.EnabledModes
+                .Select(m => m.Trim().ToUpperInvariant())
+                .OrderBy(m => m, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            ModeSets.Add(string.Join("|", modes));
+            if (modes.Length == 0)
+            {
+                return Task.FromResult<JourneyPath?>(null);
+            }
+
+            var id = _nextEdge++;
+            var mode = modes.Contains(MobilityModes.Bus, StringComparer.OrdinalIgnoreCase)
+                ? MobilityModes.Bus
+                : modes[0];
+            MobilityEdge edge = mode == MobilityModes.Bus
+                ? new BusMobilityEdge
+                {
+                    Id = id, FromNodeId = graph.SourceNodeId, ToNodeId = graph.DestinationNodeId,
+                    CandidateKey = "TEST", DistanceMeters = 1000, Geometry = [A, D],
+                    RouteId = "B1", RouteName = "Test bus", TrafficRoadMatchMeters = 10
+                }
+                : new RoadMobilityEdge
+                {
+                    Id = id, FromNodeId = graph.SourceNodeId, ToNodeId = graph.DestinationNodeId,
+                    CandidateKey = "TEST", DistanceMeters = 1000, Geometry = [A, D],
+                    TrafficRoadMatchMeters = 10,
+                    AllowedModes = new(StringComparer.OrdinalIgnoreCase) { mode }
+                };
+
+            var path = new JourneyPath
+            {
+                Steps = [new JourneyPathStep(1, graph.SourceNodeId, graph.DestinationNodeId, mode, edge, 5, 0, null, null, null, null, null)],
+                GeneralizedSearchCost = id,
+                ArrivalTime = DateTimeOffset.Now.AddMinutes(5)
+            };
+            return Task.FromResult<JourneyPath?>(path);
+        }
+    }
+
     private sealed class DepartureSensitiveTravel:IVehicleTravelTimeService
     {
         public Task<VehicleTravelTimeEstimate> EstimateAsync(string mode,double meters,TrafficPredictionRequest r,string? busRouteId=null,bool includeBusWait=false,CancellationToken c=default)

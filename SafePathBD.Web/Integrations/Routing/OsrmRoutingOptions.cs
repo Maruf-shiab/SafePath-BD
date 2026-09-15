@@ -15,4 +15,8 @@ public sealed class OsrmRoutingOptions
     public int MaxDetourAttempts { get; set; } = 4;
     public double MaxDetourDistanceFactor { get; set; } = 1.75;
     public double CautionAlternativeDistanceFactor { get; set; } = 1.25;
+    public bool TrafficDetourEnabled { get; set; } = true;
+    public double TrafficDetourCongestionThreshold { get; set; } = 55;
+    public double TrafficDetourMinCongestionGain { get; set; } = 10;
+    public double TrafficDetourMinTimeGainPercent { get; set; } = 0.03;
 }

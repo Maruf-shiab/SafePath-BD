@@ -245,6 +245,7 @@ public sealed class IntelligentRoutingService : IIntelligentRoutingService
         var maxTime = journeys.Max(x => x.Dto.TotalDurationMinutes);
         var minDistance = journeys.Min(x => x.Dto.TotalDistanceMeters);
         var maxDistance = journeys.Max(x => x.Dto.TotalDistanceMeters);
+        var maxWalking = Math.Max(1d, request.MaxWalkingMeters);
 
         foreach (var assembled in journeys)
         {
@@ -253,7 +254,9 @@ public sealed class IntelligentRoutingService : IIntelligentRoutingService
             var timePenalty = Normalize(option.TotalDurationMinutes, minTime, maxTime);
             var congestionPenalty = option.PredictedCongestionIndex;
             var transferPenalty = Math.Min(100d, option.TransferCount / (double)Math.Max(1, request.MaxTransfers) * 100d);
-            var walkingPenalty = Math.Min(100d, option.WalkingDistanceMeters / Math.Max(1d, request.MaxWalkingMeters) * 100d);
+            var walkingPenalty = request.MaxWalkingMeters == 0
+                ? (option.WalkingDistanceMeters > 0.5d ? 100d : 0d)
+                : Math.Min(100d, option.WalkingDistanceMeters / maxWalking * 100d);
             var distancePenalty = Normalize(option.TotalDistanceMeters, minDistance, maxDistance);
             var resiliencePenalty = 100d - option.Resilience;
 
@@ -265,65 +268,209 @@ public sealed class IntelligentRoutingService : IIntelligentRoutingService
                 + walkingPenalty * weights.Walking
                 + distancePenalty * weights.Distance
                 + resiliencePenalty * weights.Resilience) / 100d;
+
             var unknownPenalty = (100d - option.DataConfidence) / 100d * _options.UnknownDataPenalty;
-            option.GeneralizedCost = Math.Round(weighted + unknownPenalty, 2);
+            var incidentPenalty = IncidentTier(option) switch
+            {
+                2 => _options.AffectedJourneyPenalty,
+                1 => _options.CautionJourneyPenalty,
+                _ => 0d
+            };
+
+            option.GeneralizedCost = Math.Round(weighted + unknownPenalty + incidentPenalty, 2);
         }
     }
 
     private List<AssembledJourney> SelectTopJourneys(IReadOnlyList<AssembledJourney> pool, IntelligentRouteRequest request)
     {
-        var ordered = pool.OrderBy(x => x.Dto.GeneralizedCost).ThenBy(x => x.Dto.TotalDurationMinutes).ToList();
-        var selected = new List<AssembledJourney>();
-        var best = ordered[0];
-        selected.Add(best);
-        best.Dto.Label = "BEST OVERALL";
+        if (pool.Count == 0)
+        {
+            return new List<AssembledJourney>();
+        }
 
-        var fastest = pool.OrderBy(x => x.Dto.TotalDurationMinutes).ThenBy(x => x.Dto.GeneralizedCost).First();
-        if (fastest.Dto.Id != best.Dto.Id && IsDistinctEnough(fastest, selected, _options.DiversityThreshold))
+        // A verified AFFECTED incident is never allowed to win while a CLEAR/CAUTION practical
+        // candidate exists. Hazardous routes may still be returned as comparison options when
+        // there are not enough distinct clear choices.
+        var bestIncidentTier = pool.Min(x => IncidentTier(x.Dto));
+        var preferredTier = pool.Where(x => IncidentTier(x.Dto) == bestIncidentTier).ToList();
+        var selected = new List<AssembledJourney>();
+
+        var best = RankForPreference(preferredTier, request.Preference).First();
+        best.Dto.Label = "BEST OVERALL";
+        selected.Add(best);
+
+        // When several travel modes are selected, intentionally preserve mode diversity. A car
+        // and motorbike option on the same corridor are still meaningfully different journeys.
+        var multipleModesRequested = request.EnabledModes.Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1;
+
+        var fastestPool = preferredTier
+            .OrderBy(x => x.Dto.TotalDurationMinutes)
+            .ThenBy(x => x.Dto.PredictedCongestionIndex)
+            .ThenBy(x => x.Dto.GeneralizedCost)
+            .ToList();
+        var fastest = fastestPool.FirstOrDefault();
+        if (fastest is not null && fastest.Dto.Id != best.Dto.Id)
         {
             fastest.Dto.Label = "FASTEST PRACTICAL";
             selected.Add(fastest);
         }
 
-        var resilient = pool.OrderByDescending(x => x.Dto.Resilience)
+        var resilientPool = preferredTier
+            .OrderByDescending(x => x.Dto.Resilience)
             .ThenBy(x => x.Dto.TransferCount)
+            .ThenBy(x => x.Dto.SafetyExposure.ElevatedRiskMinutes)
             .ThenBy(x => x.Dto.GeneralizedCost)
-            .First();
-        if (resilient.Dto.Id != best.Dto.Id
-            && selected.All(x => x.Dto.Id != resilient.Dto.Id)
-            && IsDistinctEnough(resilient, selected, _options.DiversityThreshold))
+            .ToList();
+        var resilient = PickAlternative(resilientPool, selected, multipleModesRequested, preferDifferentMode: true);
+        if (resilient is not null && selected.Count < _options.TopJourneyCount)
         {
             resilient.Dto.Label = "RESILIENT / LOW-TRANSFER";
             selected.Add(resilient);
         }
 
-        foreach (var candidate in ordered)
+        // Before filling with same-mode variants, surface the best candidate for another selected
+        // mode/mode-sequence. This is what makes changing Travel Modes materially change Top 3.
+        if (multipleModesRequested)
         {
-            if (selected.Count >= _options.TopJourneyCount) break;
-            if (selected.Any(x => x.Dto.Id == candidate.Dto.Id)) continue;
-            if (!IsDistinctEnough(candidate, selected, _options.DiversityThreshold)) continue;
+            foreach (var candidate in RankForPreference(preferredTier, request.Preference))
+            {
+                if (selected.Count >= _options.TopJourneyCount)
+                {
+                    break;
+                }
+                if (selected.Any(x => x.Dto.Id == candidate.Dto.Id))
+                {
+                    continue;
+                }
+                if (selected.Any(x => SameModeSignature(x.Dto, candidate.Dto)))
+                {
+                    continue;
+                }
+
+                candidate.Dto.Label = "ALTERNATIVE";
+                selected.Add(candidate);
+            }
+        }
+
+        // Add spatially distinct options from the best incident tier.
+        foreach (var candidate in RankForPreference(preferredTier, request.Preference))
+        {
+            if (selected.Count >= _options.TopJourneyCount)
+            {
+                break;
+            }
+            if (selected.Any(x => x.Dto.Id == candidate.Dto.Id))
+            {
+                continue;
+            }
+            if (!IsDistinctEnough(candidate, selected, _options.DiversityThreshold))
+            {
+                continue;
+            }
+
             candidate.Dto.Label = "ALTERNATIVE";
             selected.Add(candidate);
         }
 
-        foreach (var candidate in ordered)
+        // If fewer than three clear/caution choices exist, include the best remaining alternatives
+        // (including affected ones) as transparent comparisons. They cannot displace BEST OVERALL.
+        foreach (var candidate in RankForPreference(pool, request.Preference))
         {
-            if (selected.Count >= _options.TopJourneyCount) break;
-            if (selected.Any(x => x.Dto.Id == candidate.Dto.Id)) continue;
-            candidate.Dto.Label = "ALTERNATIVE";
+            if (selected.Count >= _options.TopJourneyCount)
+            {
+                break;
+            }
+            if (selected.Any(x => x.Dto.Id == candidate.Dto.Id))
+            {
+                continue;
+            }
+
+            candidate.Dto.Label = IncidentTier(candidate.Dto) == 2 ? "AFFECTED ALTERNATIVE" : "ALTERNATIVE";
             selected.Add(candidate);
         }
 
-        if (fastest.Dto.Id == best.Dto.Id)
-        {
-            best.Dto.Label = "BEST OVERALL";
-        }
-        if (resilient.Dto.Id == best.Dto.Id)
-        {
-            best.Dto.Label = "BEST OVERALL";
-        }
         return selected.Take(_options.TopJourneyCount).ToList();
     }
+
+    private IEnumerable<AssembledJourney> RankForPreference(
+        IEnumerable<AssembledJourney> source,
+        string? preference)
+    {
+        var normalized = preference?.Trim().ToUpperInvariant() ?? JourneyPreferences.Balanced;
+        return normalized switch
+        {
+            JourneyPreferences.SafetyFirst => source
+                .OrderBy(x => IncidentTier(x.Dto))
+                .ThenByDescending(x => x.Dto.SafetyScore ?? 0d)
+                .ThenBy(x => x.Dto.SafetyExposure.ElevatedRiskMinutes)
+                .ThenBy(x => x.Dto.GeneralizedCost)
+                .ThenBy(x => x.Dto.TotalDurationMinutes),
+
+            JourneyPreferences.FastestPractical => source
+                .OrderBy(x => IncidentTier(x.Dto))
+                .ThenBy(x => x.Dto.TotalDurationMinutes)
+                .ThenBy(x => x.Dto.PredictedCongestionIndex)
+                .ThenBy(x => x.Dto.GeneralizedCost),
+
+            JourneyPreferences.LessWalking => source
+                .OrderBy(x => IncidentTier(x.Dto))
+                .ThenBy(x => x.Dto.WalkingDistanceMeters)
+                .ThenBy(x => x.Dto.TotalDurationMinutes)
+                .ThenBy(x => x.Dto.GeneralizedCost),
+
+            JourneyPreferences.FewerTransfers => source
+                .OrderBy(x => IncidentTier(x.Dto))
+                .ThenBy(x => x.Dto.TransferCount)
+                .ThenBy(x => x.Dto.TotalDurationMinutes)
+                .ThenBy(x => x.Dto.GeneralizedCost),
+
+            _ => source
+                .OrderBy(x => IncidentTier(x.Dto))
+                .ThenBy(x => x.Dto.GeneralizedCost)
+                .ThenBy(x => x.Dto.TotalDurationMinutes)
+        };
+    }
+
+    private AssembledJourney? PickAlternative(
+        IReadOnlyList<AssembledJourney> ordered,
+        IReadOnlyList<AssembledJourney> selected,
+        bool multipleModesRequested,
+        bool preferDifferentMode)
+    {
+        var available = ordered
+            .Where(x => selected.All(s => s.Dto.Id != x.Dto.Id))
+            .ToList();
+        if (available.Count == 0)
+        {
+            return null;
+        }
+
+        if (multipleModesRequested && preferDifferentMode)
+        {
+            var differentMode = available.FirstOrDefault(candidate =>
+                selected.All(existing => !SameModeSignature(existing.Dto, candidate.Dto)));
+            if (differentMode is not null)
+            {
+                return differentMode;
+            }
+        }
+
+        return available.FirstOrDefault(candidate => IsDistinctEnough(candidate, selected, _options.DiversityThreshold))
+            ?? available.First();
+    }
+
+    private static int IncidentTier(JourneyOptionDto option) => option.IncidentState switch
+    {
+        RouteIncidentStates.Affected => 2,
+        RouteIncidentStates.Caution => 1,
+        _ => 0
+    };
+
+    private static bool SameModeSignature(JourneyOptionDto a, JourneyOptionDto b) =>
+        string.Equals(ModeSignature(a), ModeSignature(b), StringComparison.OrdinalIgnoreCase);
+
+    private static string ModeSignature(JourneyOptionDto option) =>
+        string.Join(">", option.Modes.Select(m => m.Trim().ToUpperInvariant()));
 
     private void AddExplanations(IReadOnlyList<AssembledJourney> top, JourneyOptionDto best)
     {
@@ -373,7 +520,9 @@ public sealed class IntelligentRoutingService : IIntelligentRoutingService
     }
 
     private static bool IsDistinctEnough(AssembledJourney candidate, IReadOnlyList<AssembledJourney> selected, double threshold) =>
-        selected.All(existing => Similarity(existing, candidate) < threshold);
+        selected.All(existing =>
+            !SameModeSignature(existing.Dto, candidate.Dto)
+            || Similarity(existing, candidate) < threshold);
 
     private static double Similarity(AssembledJourney a, AssembledJourney b) =>
         JourneySimilarity.Calculate(a.Path, b.Path);
@@ -408,6 +557,9 @@ public sealed class IntelligentRoutingService : IIntelligentRoutingService
         DataConfidence = source.DataConfidence,
         Resilience = source.Resilience,
         HazardCount = source.HazardCount,
+        IncidentState = source.IncidentState,
+        AffectedIncidentCount = source.AffectedIncidentCount,
+        CautionIncidentCount = source.CautionIncidentCount,
         GeneralizedCost = source.GeneralizedCost,
         Legs = source.Legs,
         Explanation = source.Explanation,

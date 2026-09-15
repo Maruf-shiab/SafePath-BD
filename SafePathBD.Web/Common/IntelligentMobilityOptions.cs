@@ -25,6 +25,8 @@ public sealed class IntelligentMobilityOptions
     public double BusTransferMinutes { get; set; } = 2.0;
     public double BusStopDwellMinutes { get; set; } = 0.6;
     public double UnknownDataPenalty { get; set; } = 8.0;
+    public double CautionJourneyPenalty { get; set; } = 12.0;
+    public double AffectedJourneyPenalty { get; set; } = 250.0;
     public double DepartureBenefitMinutes { get; set; } = 5.0;
     public double DepartureBenefitPercent { get; set; } = 0.08;
     public int IntelligentSearchCacheMinutes { get; set; } = 20;

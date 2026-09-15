@@ -38,11 +38,19 @@ public sealed class JourneyAssembler : IJourneyAssembler
             request.MaxTransfers,
             viableCandidateCount,
             request.DepartureTime ?? DateTimeOffset.Now);
-        var incidentIds = physicalSteps
+        var incidents = physicalSteps
             .SelectMany(s => s.Edge!.Incidents)
-            .Select(i => i.ReportId)
-            .Distinct()
-            .Count();
+            .GroupBy(i => i.ReportId)
+            .Select(group => group.OrderByDescending(i => IncidentRank(i.IncidentLevel)).First())
+            .ToArray();
+        var incidentIds = incidents.Length;
+        var affectedIncidentCount = incidents.Count(i => i.IncidentLevel == RouteIncidentStates.Affected);
+        var cautionIncidentCount = incidents.Count(i => i.IncidentLevel == RouteIncidentStates.Caution);
+        var incidentState = affectedIncidentCount > 0
+            ? RouteIncidentStates.Affected
+            : cautionIncidentCount > 0
+                ? RouteIncidentStates.Caution
+                : RouteIncidentStates.Clear;
 
         var sequence = 0;
         foreach (var step in path.Steps)
@@ -109,7 +117,7 @@ public sealed class JourneyAssembler : IJourneyAssembler
             edgeMap[sequence] = new HashSet<int> { edge.Id };
         }
 
-        var modeSequence = physicalSteps.Select(s => s.Mode).DistinctAdjacent().ToArray();
+        var modeSequence = BuildModeSequence(path.Steps);
         var transferConvenience = 100d - Math.Min(100d, path.TransferCount / (double)Math.Max(1, request.MaxTransfers) * 100d);
         var walkingConvenience = 100d - Math.Min(100d, path.WalkingMeters / Math.Max(1d, request.MaxWalkingMeters) * 100d);
         var dto = new JourneyOptionDto
@@ -127,6 +135,9 @@ public sealed class JourneyAssembler : IJourneyAssembler
             DataConfidence = Math.Round(dataConfidence, 1),
             Resilience = resilience,
             HazardCount = incidentIds,
+            IncidentState = incidentState,
+            AffectedIncidentCount = affectedIncidentCount,
+            CautionIncidentCount = cautionIncidentCount,
             Legs = legs,
             JourneyDna = new JourneyDnaDto(
                 Math.Round(safetyWeighted, 1),
@@ -140,6 +151,37 @@ public sealed class JourneyAssembler : IJourneyAssembler
 
         return new AssembledJourney { Dto = dto, Path = path, LegEdgeIds = edgeMap };
     }
+
+
+    private static IReadOnlyList<string> BuildModeSequence(IReadOnlyList<JourneyPathStep> steps)
+    {
+        var modes = new List<string>();
+        foreach (var step in steps)
+        {
+            // Access walking is represented on transfer steps rather than road edges. Surface it
+            // in the visible mode sequence so Bus/Rickshaw transfers do not hide real walking.
+            if (step.Edge is null && step.TransferWalkingMeters > 0.5d)
+            {
+                modes.Add(MobilityModes.Walk);
+                modes.Add(step.Mode);
+                continue;
+            }
+
+            if (step.Edge is not null)
+            {
+                modes.Add(step.Mode);
+            }
+        }
+
+        return modes.DistinctAdjacent().ToArray();
+    }
+
+    private static int IncidentRank(string? state) => state switch
+    {
+        RouteIncidentStates.Affected => 2,
+        RouteIncidentStates.Caution => 1,
+        _ => 0
+    };
 
     private static SafetyExposureDto Exposure(IEnumerable<JourneyPathStep> steps)
     {

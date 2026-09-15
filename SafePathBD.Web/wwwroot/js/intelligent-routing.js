@@ -156,14 +156,15 @@
         var html = renderHeader(selected) + renderVisualizationTabs() + renderWarnings() +
             '<div class="journey-cards">' + state.response.journeys.map(renderJourneyCard).join("") + '</div>' +
             (selected ? renderSelectedDetail(selected) : "") + renderDepartureWindow() + renderBackup();
-        var body = workspace.renderDrawer("Intelligent journeys", "Top practical options · predicted traffic, not live traffic", html);
+        var body = workspace.renderDrawer("Intelligent journeys", "Top 3 practical options across your selected modes · predicted traffic, not live traffic", html);
         bindDrawer(body);
     }
 
     function renderHeader(journey) {
         if (!journey) return "";
         return '<section class="intel-hero" aria-live="polite"><div><span class="t-eyebrow">' + esc(journey.label) + '</span>' +
-            '<h3>' + esc(modeSequence(journey)) + '</h3><p>' + fmtMin(journey.totalDurationMinutes) + ' · ' + fmtKm(journey.totalDistanceKm) + '</p></div>' +
+            '<h3>' + esc(modeSequence(journey)) + '</h3><p>' + fmtMin(journey.totalDurationMinutes) + ' · ' + fmtKm(journey.totalDistanceKm) + '</p>' +
+            incidentBadge(journey) + '</div>' +
             '<div class="intel-hero-score"><strong>' + Math.round(journey.dataConfidence) + '%</strong><span>data confidence</span></div></section>';
     }
     function renderVisualizationTabs() {
@@ -179,9 +180,10 @@
     }
     function renderJourneyCard(j, index) {
         var selected = j.id === state.selectedId;
-        return '<button type="button" class="journey-card ' + (selected ? 'is-selected' : '') + '" data-journey-id="' + esc(j.id) + '" aria-pressed="' + selected + '">' +
+        var incidentClass = String(j.incidentState || "CLEAR").toLowerCase();
+        return '<button type="button" class="journey-card journey-card--' + esc(incidentClass) + ' ' + (selected ? 'is-selected' : '') + '" data-journey-id="' + esc(j.id) + '" aria-pressed="' + selected + '">' +
             '<span class="journey-rank">#' + (index + 1) + '</span><span class="journey-card__main"><span class="journey-label">' + esc(j.label || "ALTERNATIVE") + '</span>' +
-            '<strong>' + esc(modeSequence(j)) + '</strong><span>' + fmtMin(j.totalDurationMinutes) + ' · ' + fmtKm(j.totalDistanceKm) + '</span></span>' +
+            '<strong>' + esc(modeSequence(j)) + '</strong><span>' + fmtMin(j.totalDurationMinutes) + ' · ' + fmtKm(j.totalDistanceKm) + '</span>' + incidentBadge(j) + '</span>' +
             '<span class="journey-card__metrics"><span><b>' + Math.round(j.safetyScore || 0) + '</b> safety*</span><span><b>' + Math.round(j.resilience) + '</b> resilience</span>' +
             '<span><b>' + esc(j.trafficLevel) + '</b> traffic</span></span></button>';
     }
@@ -189,7 +191,8 @@
     function renderSelectedDetail(j) {
         return '<section class="intel-detail"><div class="intel-metric-grid">' +
             metric("ETA", fmtMin(j.totalDurationMinutes)) + metric("Walking", fmtMeters(j.walkingDistanceMeters)) + metric("Transfers", String(j.transferCount)) +
-            metric("Congestion", Math.round(j.predictedCongestionIndex) + "/100") + metric("Exposure", fmtMin(j.safetyExposure.elevatedRiskMinutes)) + metric("Confidence", Math.round(j.dataConfidence) + "%") +
+            metric("Congestion", Math.round(j.predictedCongestionIndex) + "/100") + metric("Incident", incidentTitle(j.incidentState)) + metric("Confidence", Math.round(j.dataConfidence) + "%") +
+            metric("Exposure", fmtMin(j.safetyExposure.elevatedRiskMinutes)) +
             '</div>' + renderDna(j) + '<div class="intel-explain"><h4>Why this route?</h4><p>' + esc(j.explanation) + '</p>' + renderTradeoffs(j) + '</div>' +
             '<div class="journey-timeline"><h4>Journey timeline</h4>' + renderTimeline(j) + '</div></section>';
     }
@@ -214,7 +217,7 @@
                 '<strong>'+esc(g.roadName || g.busRoute || g.transferNote || (index===0?'Start':'Journey leg'))+'</strong>' +
                 '<p>'+ (isTransfer ? esc(g.transferNote || "Transfer") + ' · ' : fmtKm(g.distanceMeters/1000) + ' · ') + fmtMin(g.durationMinutes) +
                 (g.expectedWaitMinutes>0?' · wait ~'+Math.round(g.expectedWaitMinutes)+' min':'') + '</p>' +
-                (!isTransfer ? '<small>'+esc(g.trafficLevel)+' traffic · '+Math.round(g.predictedCongestionIndex)+'/100 · '+esc(g.dataConfidence)+' data</small>' : '') + whatIf + '</div></article>';
+                (!isTransfer ? '<small>'+esc(g.trafficLevel)+' traffic · '+Math.round(g.predictedCongestionIndex)+'/100 · '+esc(g.dataConfidence)+' data · '+esc(incidentTitle(g.hazardState))+'</small>' : '') + whatIf + '</div></article>';
         }).join("");
     }
     function groupLegs(legs) {
@@ -260,23 +263,51 @@
         finally { button.disabled=false; button.textContent="What if this section is blocked?"; }
     }
 
-    function drawSelected() { var j=selectedJourney(); if(j) drawJourney(j); }
+    function drawSelected() {
+        var selected = selectedJourney();
+        if (!selected) return;
+        journeyLayer.clearLayers();
+        transferLayer.clearLayers();
+
+        // Keep the other two Top-3 options visible as subdued context. The selected journey
+        // remains visually dominant so users can immediately see that Smart Journey found
+        // genuinely different route/mode choices.
+        (state.response?.journeys || []).forEach(function (journey) {
+            if (journey.id !== selected.id) drawJourneyGeometry(journey, false, false);
+        });
+        var selectedPoints = drawJourneyGeometry(selected, true, true);
+        if (selectedPoints.length) workspace.fitCoordinates(selectedPoints, [80,80]);
+    }
+
     function drawJourney(j) {
-        journeyLayer.clearLayers(); transferLayer.clearLayers();
+        journeyLayer.clearLayers();
+        transferLayer.clearLayers();
+        var points = drawJourneyGeometry(j, true, true);
+        if (points.length) workspace.fitCoordinates(points, [80,80]);
+    }
+
+    function drawJourneyGeometry(j, isSelected, showTransfers) {
         var all=[];
         (j.legs||[]).forEach(function(leg){
             if(leg.isTransfer || !(leg.geometry||[]).length) return;
             var points=leg.geometry.map(function(p){all.push(p);return [p.latitude,p.longitude];});
-            var line=L.polyline(points,legStyle(leg)).addTo(journeyLayer);
-            line.bindTooltip(modeTitle(leg.mode)+" · "+fmtMin(leg.durationMinutes),{sticky:true,className:"route-tooltip"});
+            var style=legStyle(leg);
+            if(!isSelected){
+                style=Object.assign({},style,{opacity:.24,weight:Math.max(2,(style.weight||6)-3),dashArray:style.dashArray||"7 9"});
+            }
+            var line=L.polyline(points,style).addTo(journeyLayer);
+            if(isSelected) line.bindTooltip(modeTitle(leg.mode)+" · "+fmtMin(leg.durationMinutes),{sticky:true,className:"route-tooltip"});
         });
-        groupLegs(j.legs||[]).forEach(function(leg){
-            if(!leg.isTransfer) return;
-            var point=leg.end||leg.start; if(!point)return;
-            L.marker([point.latitude,point.longitude],{icon:transferIcon(leg.mode)}).bindTooltip(esc(leg.transferNote||"Transfer")).addTo(transferLayer);
-        });
-        if(all.length) workspace.fitCoordinates(all,[80,80]);
+        if(showTransfers){
+            groupLegs(j.legs||[]).forEach(function(leg){
+                if(!leg.isTransfer) return;
+                var point=leg.end||leg.start; if(!point)return;
+                L.marker([point.latitude,point.longitude],{icon:transferIcon(leg.mode)}).bindTooltip(esc(leg.transferNote||"Transfer")).addTo(transferLayer);
+            });
+        }
+        return all;
     }
+
     function legStyle(leg) {
         var base={weight:6,opacity:.9,lineCap:"round",lineJoin:"round"};
         if(state.displayMode==="TRAFFIC"){
@@ -289,6 +320,16 @@
         return Object.assign(base,styles[leg.mode]||{});
     }
     function transferIcon(mode){return L.divIcon({className:"intel-transfer-marker",html:'<span aria-hidden="true">↔</span><b>'+esc(modeTitle(mode))+'</b>',iconSize:[54,32],iconAnchor:[27,16]});}
+
+    function incidentTitle(state){
+        var value=String(state||"CLEAR").toUpperCase();
+        return value==="AFFECTED"?"Affected":value==="CAUTION"?"Caution":"Clear";
+    }
+    function incidentBadge(j){
+        var state=String(j.incidentState||"CLEAR").toUpperCase();
+        var text=state==="AFFECTED"?"Serious verified incident":state==="CAUTION"?"Verified incident caution":"No active verified incident detected";
+        return '<span class="journey-incident journey-incident--'+esc(state.toLowerCase())+'">'+esc(text)+'</span>';
+    }
 
     function modeSequence(j){return (j.modes||[]).map(modeTitle).join(" → ") || "Journey";}
     function modeTitle(m){return ({WALK:"Walk",RICKSHAW:"Rickshaw",BUS:"Bus",MOTORBIKE:"Motorbike",CAR:"Car"})[m]||m;}

@@ -21,3 +21,43 @@
 @keyframes intel-pop{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
 .journey-card{animation:intel-rise 240ms var(--ease-standard, ease-out) both}.journey-card:nth-child(2){animation-delay:40ms}.journey-card:nth-child(3){animation-delay:80ms}.intel-transfer-marker>span{animation:intel-pop 220ms var(--ease-standard, ease-out) both}
 @media(prefers-reduced-motion:reduce){.journey-card,.intel-transfer-marker>span{animation:none}}
+
+/* Smart Journey route-quality patch: incident state must be visible in text, not only color. */
+.journey-incident {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin-top: .45rem;
+    padding: .28rem .58rem;
+    border-radius: 999px;
+    border: 1px solid var(--border-subtle);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+}
+
+.journey-incident--clear {
+    color: var(--accent-primary);
+    border-color: color-mix(in srgb, var(--accent-primary) 55%, transparent);
+    background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+}
+
+.journey-incident--caution {
+    color: #e4be5c;
+    border-color: rgba(228,190,92,.45);
+    background: rgba(228,190,92,.09);
+}
+
+.journey-incident--affected {
+    color: var(--danger, #ef6262);
+    border-color: rgba(239,98,98,.52);
+    background: rgba(239,98,98,.10);
+}
+
+.journey-card--affected:not(.is-selected) {
+    border-color: rgba(239,98,98,.28);
+}
+
+.journey-card--caution:not(.is-selected) {
+    border-color: rgba(228,190,92,.24);
+}
