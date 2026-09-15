@@ -13,6 +13,7 @@
 .mod-filters {
     position: sticky;
     top: calc(var(--navbar-height) + var(--space-4));
+    min-width: 0;
     padding: var(--space-5);
     background: var(--surface-1);
     border: 1px solid var(--border-subtle);
@@ -20,16 +21,28 @@
     box-shadow: var(--shadow-sm);
 }
 
+/* Pin the implicit track so no single control can widen the whole sidebar. */
+.mod-filters form {
+    grid-template-columns: minmax(0, 1fr);
+}
+
 .mod-filter-group {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
+    min-width: 0;
 }
 
+/* Native date inputs have a large intrinsic width, so they stack here instead of
+   forcing the filter column wider than its track. */
 .mod-filter-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
+}
+
+.mod-filters .input {
+    min-width: 0;
 }
 
 .mod-filter-label {
@@ -43,6 +56,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-width: 0;
 }
 
 .mod-status-item {
@@ -50,6 +64,7 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
+    min-width: 0;
     padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-xs);
     color: var(--text-secondary);
@@ -57,6 +72,12 @@
     text-decoration: none;
     transition: background var(--motion-fast) var(--ease-standard),
                 color var(--motion-fast) var(--ease-standard);
+}
+
+.mod-status-item > span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .mod-status-item:hover {
