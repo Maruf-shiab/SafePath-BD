@@ -51,6 +51,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IEmergencyService, EmergencyService>();
 builder.Services.AddScoped<ILocationService, LocationService>();
+builder.Services.AddScoped<ISavedPlaceService, SavedPlaceService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IAccidentReportService, AccidentReportService>();
 builder.Services.AddScoped<IHazardReportService, HazardReportService>();
