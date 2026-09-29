@@ -142,7 +142,7 @@
                     if (opts.applyToStart) {
                         var input = root.querySelector('[data-place-field="start"] input');
                         input.value = "My location";
-                        applyPlace("start", lat, lng, "My location");
+                        applyPlace("start", lat, lng, "My location", { provider: "MANUAL" });
                     }
 
                     if (!opts.silent) {
@@ -186,11 +186,22 @@
         el.pointCoords.textContent = formatCoords(lat, lng);
         el.pointCard.dataset.lat = lat;
         el.pointCard.dataset.lng = lng;
+        el.pointCard.dataset.label = formatCoords(lat, lng);
+        el.pointCard.dataset.addressLine = "";
+        el.pointCard.dataset.areaName = "";
+        el.pointCard.dataset.city = "";
+        el.pointCard.dataset.district = "";
+        el.pointCard.dataset.provider = "MANUAL";
 
         try {
             var place = await getJson("/api/v1/locations/reverse?lat=" + lat + "&lng=" + lng);
             el.pointTitle.textContent = place.addressLine || place.displayName;
             el.pointCard.dataset.label = place.addressLine || place.displayName;
+            el.pointCard.dataset.addressLine = place.addressLine || place.displayName || "";
+            el.pointCard.dataset.areaName = place.areaName || "";
+            el.pointCard.dataset.city = place.city || "";
+            el.pointCard.dataset.district = place.district || "";
+            el.pointCard.dataset.provider = place.provider || "OSM";
         } catch (error) {
             // Coordinates remain usable even when the geocoder is unreachable.
             el.pointTitle.textContent = "Address unavailable";
@@ -609,7 +620,11 @@
         function choose(result) {
             input.value = result.shortName;
             close();
-            applyPlace(role, result.latitude, result.longitude, result.shortName);
+            applyPlace(role, result.latitude, result.longitude, result.shortName, {
+                addressLine: result.displayName || result.shortName,
+                provider: result.provider || "OSM",
+                externalPlaceId: result.externalPlaceId || null
+            });
         }
 
         function move(delta) {
@@ -673,13 +688,25 @@
         });
     }
 
-    function applyPlace(role, lat, lng, label) {
+    function applyPlace(role, lat, lng, label, metadata) {
+        var meta = metadata || {};
+        var point = {
+            lat: lat,
+            lng: lng,
+            label: label,
+            addressLine: meta.addressLine || null,
+            areaName: meta.areaName || null,
+            city: meta.city || null,
+            district: meta.district || null,
+            provider: meta.provider || null,
+            externalPlaceId: meta.externalPlaceId || null
+        };
         if (role === "start") {
-            state.start = { lat: lat, lng: lng, label: label };
+            state.start = point;
             state.startMarker = setSingleMarker(state.startMarker, lat, lng,
                 pinIcon("start", '<circle cx="12" cy="12" r="4" />'), "Start: " + label);
         } else {
-            state.end = { lat: lat, lng: lng, label: label };
+            state.end = point;
             state.endMarker = setSingleMarker(state.endMarker, lat, lng,
                 pinIcon("end", '<path d="M7 20V5m0 0 9 3-9 3" />'), "Destination: " + label);
         }
@@ -763,7 +790,7 @@
             }
             var input = root.querySelector('[data-place-field="start"] input');
             input.value = "My location";
-            applyPlace("start", state.userLocation.lat, state.userLocation.lng, "My location");
+            applyPlace("start", state.userLocation.lat, state.userLocation.lng, "My location", { provider: "MANUAL" });
         });
 
         root.querySelector("[data-swap]").addEventListener("click", function () {
@@ -807,7 +834,13 @@
         var label = el.pointCard.dataset.label || formatCoords(lat, lng);
 
         root.querySelector('[data-place-field="' + role + '"] input').value = label;
-        applyPlace(role, lat, lng, label);
+        applyPlace(role, lat, lng, label, {
+            addressLine: el.pointCard.dataset.addressLine || label,
+            areaName: el.pointCard.dataset.areaName || null,
+            city: el.pointCard.dataset.city || null,
+            district: el.pointCard.dataset.district || null,
+            provider: el.pointCard.dataset.provider || "MANUAL"
+        });
 
         el.pointCard.hidden = true;
         if (state.pickedMarker) {
@@ -846,12 +879,34 @@
             }));
             state.map.fitBounds(bounds, { padding: padding || [70, 70], animate: !reduceMotion });
         },
+        setEndpoint: function (role, point) {
+            if (!point || (role !== "start" && role !== "end")) { return; }
+            var input = root.querySelector('[data-place-field="' + role + '"] input');
+            var label = point.label || formatCoords(point.lat, point.lng);
+            if (input) input.value = label;
+            applyPlace(role, Number(point.lat), Number(point.lng), label, point);
+        },
+        getPickedPoint: function () {
+            if (!el.pointCard || el.pointCard.hidden) { return null; }
+            var lat = Number(el.pointCard.dataset.lat);
+            var lng = Number(el.pointCard.dataset.lng);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) { return null; }
+            return {
+                lat: lat, lng: lng,
+                label: el.pointCard.dataset.label || formatCoords(lat, lng),
+                addressLine: el.pointCard.dataset.addressLine || null,
+                areaName: el.pointCard.dataset.areaName || null,
+                city: el.pointCard.dataset.city || null,
+                district: el.pointCard.dataset.district || null,
+                provider: el.pointCard.dataset.provider || "MANUAL"
+            };
+        },
         requestCurrentLocation: function (applyToStart, forceRefresh) {
             if (state.userLocation && !forceRefresh) {
                 if (applyToStart) {
                     var input = root.querySelector('[data-place-field="start"] input');
                     input.value = "My location";
-                    applyPlace("start", state.userLocation.lat, state.userLocation.lng, "My location");
+                    applyPlace("start", state.userLocation.lat, state.userLocation.lng, "My location", { provider: "MANUAL" });
                 }
                 return Promise.resolve(Object.assign({}, state.userLocation));
             }
