@@ -10,6 +10,8 @@
         lng = Model.DefaultLongitude,
         zoom = Model.DefaultZoom
     });
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    var mapLoginUrl = Url.Action("Login", "Account", new { returnUrl = "/Map" }) ?? "/Account/Login?returnUrl=%2FMap";
 }
 
 @section Head {
@@ -18,9 +20,12 @@
     <link rel="stylesheet" href="~/css/reports.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/routing.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/intelligent-routing.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/saved-places.css" asp-append-version="true" />
 }
 
-<div class="map-workspace" data-map-root data-map-config="@mapConfig">
+<div class="map-workspace" data-map-root data-map-config="@mapConfig"
+     data-user-authenticated="@(isAuthenticated.ToString().ToLowerInvariant())"
+     data-map-login-url="@mapLoginUrl">
     <form data-routing-antiforgery hidden aria-hidden="true">
         @Html.AntiForgeryToken()
     </form>
@@ -49,24 +54,51 @@
         <div class="route-fields">
             <div class="route-field" data-place-field="start">
                 <span class="route-field-dot" aria-hidden="true"></span>
-                <div style="position:relative">
+                <div class="place-input-shell">
                     <label class="visually-hidden" for="startPlace">Start location</label>
                     <input class="input" id="startPlace" type="text" placeholder="Choose a start point"
                            autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" />
+                    <button class="save-place-trigger" type="button" data-save-place-role="start" title="Save this start location" aria-label="Save start location">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4V3Z" /></svg>
+                    </button>
                     <div class="suggest" data-suggest role="listbox" aria-label="Start location suggestions"></div>
                 </div>
             </div>
 
             <div class="route-field route-field--end" data-place-field="end">
                 <span class="route-field-dot" aria-hidden="true"></span>
-                <div style="position:relative">
+                <div class="place-input-shell">
                     <label class="visually-hidden" for="endPlace">Destination</label>
                     <input class="input" id="endPlace" type="text" placeholder="Choose a destination"
                            autocomplete="off" role="combobox" aria-expanded="false" aria-autocomplete="list" />
+                    <button class="save-place-trigger" type="button" data-save-place-role="end" title="Save this destination" aria-label="Save destination">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4V3Z" /></svg>
+                    </button>
                     <div class="suggest" data-suggest role="listbox" aria-label="Destination suggestions"></div>
                 </div>
             </div>
         </div>
+
+        <section class="saved-places" data-saved-places aria-label="Saved places">
+            <div class="saved-places__head">
+                <strong>Saved places</strong>
+                <span data-saved-place-status>@(isAuthenticated ? "Loading…" : "Login required")</span>
+            </div>
+            <div class="saved-place-list" data-saved-place-list>
+                @if (isAuthenticated)
+                {
+                    <div class="saved-place-loading"><i aria-hidden="true"></i><span>Loading saved places…</span></div>
+                }
+                else
+                {
+                    <div class="saved-place-login">
+                        <span>Home, Work and personal bookmarks are available after sign in.</span>
+                        <small>Saved locations can be used instantly as either the route start or destination.</small>
+                        <a data-saved-login href="@mapLoginUrl">Sign in to use saved places</a>
+                    </div>
+                }
+            </div>
+        </section>
 
         <div class="route-actions">
             <button class="btn btn-secondary" type="button" data-use-current-start>
@@ -205,9 +237,45 @@
         <div class="point-actions">
             <button class="btn btn-secondary" type="button" data-set-start>Set as start</button>
             <button class="btn btn-secondary" type="button" data-set-end>Set as destination</button>
+            <button class="btn btn-secondary" type="button" data-save-picked-place>Save place</button>
             <button class="btn btn-ghost" type="button" data-point-dismiss aria-label="Dismiss selected point">Clear</button>
         </div>
     </div>
+
+    <dialog class="saved-place-dialog" data-saved-place-dialog aria-labelledby="savedPlaceTitle">
+        <form class="saved-place-dialog__form" data-saved-place-form>
+            <div class="saved-place-dialog__head">
+                <div>
+                    <h3 class="t-h3" id="savedPlaceTitle">Save this location</h3>
+                    <p class="saved-place-dialog__preview" data-saved-place-preview></p>
+                </div>
+                <button class="saved-place-dialog__close" type="button" data-saved-place-dialog-close aria-label="Close save location dialog">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                </button>
+            </div>
+            <div class="saved-place-dialog__grid">
+                <label>
+                    <span>Type</span>
+                    <select class="input" data-saved-place-type>
+                        <option value="HOME">Home</option>
+                        <option value="OFFICE">Work</option>
+                        <option value="UNIVERSITY">University</option>
+                        <option value="FAVORITE" selected>Bookmark</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </label>
+                <label>
+                    <span>Name</span>
+                    <input class="input" type="text" maxlength="120" data-saved-place-name placeholder="Bookmark name" autocomplete="off" />
+                </label>
+            </div>
+            <p class="t-meta" style="margin:0">Saving Home or Work again updates that shortcut. Custom bookmarks can be saved with different names.</p>
+            <div class="saved-place-dialog__actions">
+                <button class="btn btn-secondary" type="button" data-saved-place-cancel>Cancel</button>
+                <button class="btn btn-primary" type="submit" data-saved-place-submit>Save location</button>
+            </div>
+        </form>
+    </dialog>
 
     @* Results / detail drawer — bottom sheet on mobile *@
     <aside class="map-layer map-drawer" data-drawer aria-hidden="true" aria-label="Map results and route alternatives">
@@ -231,6 +299,7 @@
     <script src="~/lib/leaflet/leaflet.js"></script>
     <script src="~/js/safepath-map.js" asp-append-version="true"></script>
     <script src="~/js/map.js" asp-append-version="true"></script>
+    <script src="~/js/saved-places.js" asp-append-version="true"></script>
     <script src="~/js/routing.js" asp-append-version="true"></script>
     <script src="~/js/intelligent-routing.js" asp-append-version="true"></script>
 }
